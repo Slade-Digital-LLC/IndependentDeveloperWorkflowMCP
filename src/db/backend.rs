@@ -6,6 +6,7 @@ use crate::ai::schemas::IssueClassification;
 use crate::db::events::WebhookEventRow;
 use crate::db::issues::Issue;
 use crate::db::pulls::{PrAnalysisRow, PullRequest};
+use crate::db::search::SearchHit;
 use crate::db::sync::SyncEntry;
 use crate::db::triage::TriageResultRow;
 
@@ -98,6 +99,18 @@ pub trait DatabaseBackend: Send + Sync {
     fn pending_event_count(&self) -> Result<u64>;
     fn cleanup_old_events(&self, days: u32) -> Result<u64>;
     fn get_pending_events(&self) -> Result<Vec<WebhookEventRow>>;
+
+    // ── Search ──────────────────────────────────────────────────
+
+    /// Full-text search across issues, pull requests, triage results and
+    /// comments for this repo. The free-form `query` is sanitised inside
+    /// each backend implementation (FTS5 prefix-AND on SQLite, websearch
+    /// tsquery on Postgres) so callers pass user input as-is.
+    ///
+    /// Returns at most `limit` hits ordered best first. `limit` is clamped
+    /// to [1, 500] inside each implementation to bound per-repo cost — the
+    /// handler paginates the merged result set across repos.
+    fn search_fts(&self, query: &str, limit: usize) -> Result<Vec<SearchHit>>;
 
     // ── Escape hatch ────────────────────────────────────────────
 
@@ -247,6 +260,16 @@ impl DatabaseBackend for super::Database {
 
     fn get_pending_events(&self) -> Result<Vec<WebhookEventRow>> {
         self.get_pending_events()
+    }
+
+    fn search_fts(&self, query: &str, limit: usize) -> Result<Vec<SearchHit>> {
+        // SQLite path applies the FTS5-specific sanitisation (token*-AND);
+        // Postgres backends sanitise differently inside their impl, so we
+        // keep the rule here rather than in shared code.
+        match super::search::sanitize_query(query) {
+            Some(match_expr) => self.search_fts(&match_expr, limit),
+            None => Ok(Vec::new()),
+        }
     }
 
     fn get_pulls_needing_analysis(&self) -> Result<Vec<PullRequest>> {
