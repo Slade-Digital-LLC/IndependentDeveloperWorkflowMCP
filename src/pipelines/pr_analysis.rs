@@ -182,6 +182,9 @@ async fn analyze_pr(
 
     let analysis: PrAnalysis = ai.complete(system_prompt, &user_prompt).await?;
 
+    // Account for the LLM call — advisory, never fail the pipeline.
+    let _ = db.record_llm_invocation("pr_analysis", None);
+
     // Store in DB
     let now = chrono::Utc::now().to_rfc3339();
     db.upsert_pr_analysis(&PrAnalysisRow {

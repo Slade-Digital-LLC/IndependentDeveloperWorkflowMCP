@@ -112,6 +112,22 @@ pub trait DatabaseBackend: Send + Sync {
     /// handler paginates the merged result set across repos.
     fn search_fts(&self, query: &str, limit: usize) -> Result<Vec<SearchHit>>;
 
+    // ── LLM accounting ──────────────────────────────────────────
+
+    /// Record one successful LLM invocation so the Pro usage dashboard
+    /// can show real call counts (vs cache-hit "triages" that touch no
+    /// LLM). `kind` is a short label like `"triage"` or `"pr_analysis"`;
+    /// `model` is the model identifier if known.
+    ///
+    /// Default impl is a no-op: OSS SQLite installs don't need the
+    /// accounting and we don't want to slow the hot path with an extra
+    /// write per LLM call. The Pro Postgres backend overrides this to
+    /// insert into the `llm_invocations` table.
+    fn record_llm_invocation(&self, kind: &str, model: Option<&str>) -> Result<()> {
+        let _ = (kind, model);
+        Ok(())
+    }
+
     // ── Escape hatch ────────────────────────────────────────────
 
     /// Downcast to the concrete SQLite `Database` if this backend is SQLite.
