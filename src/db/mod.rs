@@ -7,8 +7,10 @@ pub mod schema;
 pub mod search;
 pub mod sync;
 pub mod triage;
+pub mod usage;
 
 pub use search::{sanitize_query, SearchHit};
+pub use usage::{UsageByKind, UsageCounts};
 
 pub use backend::DatabaseBackend;
 

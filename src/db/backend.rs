@@ -9,6 +9,7 @@ use crate::db::pulls::{PrAnalysisRow, PullRequest};
 use crate::db::search::SearchHit;
 use crate::db::sync::SyncEntry;
 use crate::db::triage::TriageResultRow;
+use crate::db::usage::UsageCounts;
 
 /// Unified interface for both SQLite and PostgreSQL database backends.
 ///
@@ -111,6 +112,31 @@ pub trait DatabaseBackend: Send + Sync {
     /// to [1, 500] inside each implementation to bound per-repo cost — the
     /// handler paginates the merged result set across repos.
     fn search_fts(&self, query: &str, limit: usize) -> Result<Vec<SearchHit>>;
+
+    // ── LLM accounting ──────────────────────────────────────────
+
+    /// Record one successful LLM invocation so the Pro usage dashboard
+    /// can show real call counts (vs cache-hit "triages" that touch no
+    /// LLM). `kind` is a short label like `"triage"` or `"pr_analysis"`;
+    /// `model` is the model identifier if known.
+    ///
+    /// Default impl is a no-op: OSS SQLite installs don't need the
+    /// accounting and we don't want to slow the hot path with an extra
+    /// write per LLM call. The Pro Postgres backend overrides this to
+    /// insert into the `llm_invocations` table.
+    fn record_llm_invocation(&self, kind: &str, model: Option<&str>) -> Result<()> {
+        let _ = (kind, model);
+        Ok(())
+    }
+
+    /// Roll-up of LLM invocation counts over the last 24h / 7d / 30d
+    /// (plus all-time total and a per-kind breakdown) for this repo's
+    /// backend. Default impl returns zeroes so OSS SQLite installs
+    /// render an empty Pro usage dashboard rather than failing the
+    /// route; only the Pro Postgres backend queries `llm_invocations`.
+    fn usage_counts(&self) -> Result<UsageCounts> {
+        Ok(UsageCounts::default())
+    }
 
     // ── Escape hatch ────────────────────────────────────────────
 

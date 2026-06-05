@@ -86,6 +86,7 @@
 		{ href: '/activity', label: 'Activity', icon: 'activity' },
 		{ href: '/actions', label: 'Actions', icon: 'actions' },
 		{ href: '/logs', label: 'Logs', icon: 'logs' },
+		{ href: '/usage', label: 'Usage', icon: 'activity', feature: 'usage-dashboard' },
 		{ href: '/settings', label: 'Settings', icon: 'settings' }
 	];
 	function isFeatureLicensed(featureId: string | undefined): boolean {

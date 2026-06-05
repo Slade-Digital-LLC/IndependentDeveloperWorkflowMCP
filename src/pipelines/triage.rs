@@ -349,6 +349,12 @@ async fn triage_issue(
 
     let classification: IssueClassification = ai.complete(system_prompt, &user_prompt).await?;
 
+    // Account for the LLM call so the Pro usage dashboard reflects
+    // real spend (vs cache-hit triages above that never reach here).
+    // Errors here are advisory — never fail the pipeline because
+    // accounting failed.
+    let _ = db.record_llm_invocation("triage", None);
+
     // Only persist triage result and ICM context when applying
     if apply {
         db.upsert_triage_result_with_hash(&classification, issue.number, Some(&content_hash))?;
