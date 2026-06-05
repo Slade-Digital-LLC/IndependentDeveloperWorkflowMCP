@@ -9,6 +9,7 @@ use crate::db::pulls::{PrAnalysisRow, PullRequest};
 use crate::db::search::SearchHit;
 use crate::db::sync::SyncEntry;
 use crate::db::triage::TriageResultRow;
+use crate::db::usage::UsageCounts;
 
 /// Unified interface for both SQLite and PostgreSQL database backends.
 ///
@@ -126,6 +127,15 @@ pub trait DatabaseBackend: Send + Sync {
     fn record_llm_invocation(&self, kind: &str, model: Option<&str>) -> Result<()> {
         let _ = (kind, model);
         Ok(())
+    }
+
+    /// Roll-up of LLM invocation counts over the last 24h / 7d / 30d
+    /// (plus all-time total and a per-kind breakdown) for this repo's
+    /// backend. Default impl returns zeroes so OSS SQLite installs
+    /// render an empty Pro usage dashboard rather than failing the
+    /// route; only the Pro Postgres backend queries `llm_invocations`.
+    fn usage_counts(&self) -> Result<UsageCounts> {
+        Ok(UsageCounts::default())
     }
 
     // ── Escape hatch ────────────────────────────────────────────
