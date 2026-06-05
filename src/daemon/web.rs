@@ -1802,6 +1802,10 @@ async fn api_license() -> impl IntoResponse {
         // wshm-pro. Declared here only so the SPA can gate the sidebar
         // entry; `is_pro` is the enabled flag.
         ("issue-insights", "Issue insights dashboard", is_pro),
+        // Usage dashboard (Pro). Tracks LLM invocations from the Pro
+        // Postgres backend + live GitHub rate limit. Sidebar entry is
+        // gated; the page itself ships only in the Pro web bundle.
+        ("usage-dashboard", "LLM + API usage dashboard", is_pro),
     ];
 
     let features: Vec<serde_json::Value> = pro_features
