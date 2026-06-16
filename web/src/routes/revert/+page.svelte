@@ -39,7 +39,7 @@
 {#if error}
 	<Alert color="red">{error}</Alert>
 {:else if preview}
-	<Alert color="yellow" class="mb-6">
+	<Alert color="yellow" class="mb-6 !bg-yellow-900/20 !text-yellow-100 !border !border-yellow-700/50">
 		<Heading tag="h3" class="text-sm font-semibold mb-1">Destructive Operation</Heading>
 		<P class="text-xs">
 			Reverting will remove all wshm comments, labels, triage results, and PR analyses from GitHub.

@@ -103,7 +103,7 @@
 	</Card>
 {:else}
 	{#if aiMissing || ghMissing}
-		<Alert color="yellow" class="mb-4">
+		<Alert color="yellow" class="mb-4 !bg-yellow-900/20 !text-yellow-100 !border !border-yellow-700/50">
 			<div class="font-semibold mb-1">⚠️ Automatic actions disabled</div>
 			<ul class="text-sm list-disc ml-5 space-y-0.5">
 				{#if ghMissing}
