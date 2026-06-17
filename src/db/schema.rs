@@ -107,6 +107,16 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
         )?;
     }
 
+    // Composite index covering the WHERE state='open' filter + the
+    // ORDER BY reactions_total DESC used by get_issues_needing_triage and
+    // get_untriaged_issues, so the scan no longer forces a full-table sort.
+    // Created here (after the reactions columns exist) rather than in the
+    // initial batch above, where reactions_total may not yet be present.
+    conn.execute_batch(
+        "CREATE INDEX IF NOT EXISTS idx_issues_state_reactions
+         ON issues(state, reactions_total DESC);",
+    )?;
+
     // Migration: add content_hash to triage_results and pr_analyses (for LLM call deduplication)
     let has_triage_hash: bool = conn
         .prepare("SELECT content_hash FROM triage_results LIMIT 0")

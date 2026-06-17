@@ -362,11 +362,14 @@ impl App {
 
         let pulls = db.get_open_pulls()?;
 
+        // Batch-load triage results once to avoid an N+1 query per tick.
+        let triage_map = db.get_all_triage_results().unwrap_or_default();
+
         // Build issue rows with triage results + linked PRs
         self.issues = open_issues
             .into_iter()
             .map(|issue| {
-                let triage = db.get_triage_result(issue.number).ok().flatten();
+                let triage = triage_map.get(&issue.number).cloned();
                 let issue_ref = format!("#{}", issue.number);
                 let linked_prs: Vec<u64> = pulls
                     .iter()

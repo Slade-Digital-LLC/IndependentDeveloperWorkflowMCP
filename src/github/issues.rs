@@ -175,7 +175,9 @@ impl Client {
         );
         let body = serde_json::json!({ "assignees": assignees });
 
-        crate::retry::with_retry("github: add assignees", || async {
+        // POST endpoint — use connect-only retry so a post-send EOF doesn't
+        // re-issue the write.
+        crate::retry::with_retry_connect_only("github: add assignees", || async {
             let response = self
                 .octocrab
                 ._post(&url, Some(&body))
@@ -202,7 +204,9 @@ impl Client {
             self.update_comment(comment_id, &body_with_marker).await?;
         } else {
             debug!("Creating new wshm comment on issue #{number}");
-            crate::retry::with_retry("github: create comment", || async {
+            // Connect-only retry: re-issuing a create after a post-send body
+            // EOF would duplicate the comment.
+            crate::retry::with_retry_connect_only("github: create comment", || async {
                 self.octocrab
                     .issues(&self.owner, &self.repo)
                     .create_comment(number, &body_with_marker)
@@ -345,7 +349,9 @@ impl Client {
 
     pub async fn create_issue(&self, title: &str, body: &str, labels: &[String]) -> Result<u64> {
         let body = ensure_comment_marker(body, &self.comment_marker);
-        let issue = crate::retry::with_retry("github: create issue", || async {
+        // Connect-only retry: re-issuing after a post-send EOF would create
+        // a duplicate issue.
+        let issue = crate::retry::with_retry_connect_only("github: create issue", || async {
             self.octocrab
                 .issues(&self.owner, &self.repo)
                 .create(title)

@@ -260,7 +260,12 @@ pub async fn execute(
                 Ok(false) => Ok(format!(
                     "Auto-fix for issue #{number} requires wshm Pro. Visit https://wshm.dev/pro"
                 )),
-                Err(e) => Ok(format!("Auto-fix failed for issue #{number}: {e:#}")),
+                Err(e) => {
+                    tracing::warn!("auto-fix #{number} failed: {e:#}");
+                    Ok(format!(
+                        "Auto-fix failed for issue #{number}. See server logs for details."
+                    ))
+                }
             }
         }
         SlashCommand::Queue => {

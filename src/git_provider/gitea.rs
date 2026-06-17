@@ -77,7 +77,10 @@ impl GiteaProvider {
 
     async fn post_json(&self, path: &str, body: &serde_json::Value) -> Result<serde_json::Value> {
         let url = self.api_url(path);
-        crate::retry::with_retry("Gitea POST", || async {
+        // Connect-only retry: POST creates non-idempotent resources (issue
+        // comments, reviews). A response-body EOF after the server already
+        // created the comment must NOT be retried, or it is duplicated.
+        crate::retry::with_retry_connect_only("Gitea POST", || async {
             let resp = self
                 .http
                 .post(&url)

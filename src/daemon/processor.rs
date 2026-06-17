@@ -196,9 +196,19 @@ async fn handle_issue(state: &DaemonState, event: &WebhookEvent) -> anyhow::Resu
             info!("Skipping blacklisted issue #{n}");
             return Ok(());
         }
-        if let Ok(true) = state.db.is_triaged(n) {
-            info!("Issue #{n} already triaged, skipping");
-            return Ok(());
+        match state.db.is_triaged(n) {
+            Ok(true) => {
+                info!("Issue #{n} already triaged, skipping");
+                return Ok(());
+            }
+            Ok(false) => {}
+            Err(e) => {
+                // A transient DB/IO error must NOT fall through to a
+                // re-triage: that would burn AI credits on every error.
+                // Treat an unknown triage state as already-triaged (skip).
+                warn!("is_triaged check failed for #{n}, skipping to avoid re-triage: {e:#}");
+                return Ok(());
+            }
         }
     }
 

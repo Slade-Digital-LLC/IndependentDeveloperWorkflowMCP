@@ -39,6 +39,12 @@ pub trait DatabaseBackend: Send + Sync {
     fn get_open_pulls(&self) -> Result<Vec<PullRequest>>;
     fn get_unanalyzed_pulls(&self) -> Result<Vec<PullRequest>>;
     fn get_pr_analysis(&self, pr_number: u64) -> Result<Option<PrAnalysisRow>>;
+    /// Batch loader: every PR analysis keyed by PR number, in one query.
+    /// Used by the web handlers to avoid an N+1 `get_pr_analysis` per open
+    /// PR. Default impl returns an empty map; SQLite overrides it.
+    fn get_all_pr_analyses(&self) -> Result<std::collections::HashMap<u64, PrAnalysisRow>> {
+        Ok(std::collections::HashMap::new())
+    }
     /// Recently-closed pull requests (highest `updated_at` first), capped
     /// at `limit`. Backs the changelog view in TUI and the /api/v1/changelog
     /// endpoint.
@@ -57,6 +63,18 @@ pub trait DatabaseBackend: Send + Sync {
         content_hash: Option<&str>,
     ) -> Result<()>;
     fn get_triage_result(&self, issue_number: u64) -> Result<Option<TriageResultRow>>;
+    /// Batch loader: every triage result keyed by issue number. Used by the
+    /// web handlers to avoid an N+1 `get_triage_result` per open issue.
+    /// Default impl falls back to an empty map; the SQLite backend overrides
+    /// it with a single query.
+    fn get_all_triage_results(&self) -> Result<std::collections::HashMap<u64, TriageResultRow>> {
+        Ok(std::collections::HashMap::new())
+    }
+    /// Batch loader: count of wshm-applied labels per issue, in one query.
+    /// Default impl returns an empty map; SQLite overrides it.
+    fn get_applied_label_counts(&self) -> Result<std::collections::HashMap<u64, usize>> {
+        Ok(std::collections::HashMap::new())
+    }
     /// Insert `triage_results` stubs for open issues that already carry
     /// wshm-managed labels on the forge but have no local row. Lets a
     /// fresh install / migration / wiped state.db avoid re-spending LLM
@@ -227,6 +245,10 @@ impl DatabaseBackend for super::Database {
         self.get_pr_analysis(pr_number)
     }
 
+    fn get_all_pr_analyses(&self) -> Result<std::collections::HashMap<u64, PrAnalysisRow>> {
+        self.get_all_pr_analyses()
+    }
+
     fn get_closed_pulls(&self, limit: usize) -> Result<Vec<PullRequest>> {
         self.get_closed_pulls(limit)
     }
@@ -246,6 +268,14 @@ impl DatabaseBackend for super::Database {
 
     fn get_triage_result(&self, issue_number: u64) -> Result<Option<TriageResultRow>> {
         self.get_triage_result(issue_number)
+    }
+
+    fn get_all_triage_results(&self) -> Result<std::collections::HashMap<u64, TriageResultRow>> {
+        self.get_all_triage_results()
+    }
+
+    fn get_applied_label_counts(&self) -> Result<std::collections::HashMap<u64, usize>> {
+        self.get_applied_label_counts()
     }
 
     fn seed_triage_stubs_from_labels(
