@@ -97,6 +97,25 @@ pub async fn run_with_filters(
         }
         issues
     } else {
+        // Safety net: before counting "needs triage", reconstruct stub
+        // rows for any open issue that already carries wshm-managed
+        // labels on the forge but has no local triage_results row. Stops
+        // a wiped state.db / fresh install / storage migration from
+        // re-burning LLM credits on issues that are visibly already triaged.
+        let prefixes = managed_label_prefixes_from(filters);
+        if !prefixes.is_empty() {
+            let grace = managed_label_grace_hours_from(filters);
+            match db.seed_triage_stubs_from_labels(&prefixes, grace) {
+                Ok(0) => {}
+                Ok(n) => info!(
+                    "Seeded {n} triage stub(s) from existing forge labels (skipping LLM for already-triaged issues)"
+                ),
+                Err(e) => tracing::warn!(
+                    "Failed to seed triage stubs from labels: {e}; continuing without safety net"
+                ),
+            }
+        }
+
         // Get issues needing triage (never triaged OR content changed OR
         // carrying a force-relabel marker OR zero-label + stale).
         // Process in batches of 20 to avoid overwhelming the LLM API.
@@ -275,6 +294,18 @@ fn relabel_labels_from(filters: Option<&crate::config::RepoFilters>) -> Vec<Stri
 fn no_labels_min_age_from(filters: Option<&crate::config::RepoFilters>) -> u32 {
     filters
         .map(|f| f.triage_no_labels_min_age_hours)
+        .unwrap_or(0)
+}
+
+fn managed_label_prefixes_from(filters: Option<&crate::config::RepoFilters>) -> Vec<String> {
+    filters
+        .map(|f| f.triage_managed_label_prefixes.clone())
+        .unwrap_or_default()
+}
+
+fn managed_label_grace_hours_from(filters: Option<&crate::config::RepoFilters>) -> u32 {
+    filters
+        .map(|f| f.triage_managed_label_grace_hours)
         .unwrap_or(0)
 }
 

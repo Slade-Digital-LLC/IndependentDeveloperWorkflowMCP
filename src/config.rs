@@ -1480,6 +1480,19 @@ pub struct RepoFilters {
     /// older than this many hours. `0` disables the trigger.
     #[serde(default = "default_triage_no_labels_min_age_hours")]
     pub triage_no_labels_min_age_hours: u32,
+    /// Label-name prefixes that wshm treats as "already triaged" evidence
+    /// on the forge. When an open issue carries any label whose name starts
+    /// with one of these prefixes and has no local `triage_results` row,
+    /// the pipeline seeds a stub row from the labels instead of spending
+    /// an LLM call. Empty disables the safety net (legacy behaviour).
+    #[serde(default = "default_triage_managed_label_prefixes")]
+    pub triage_managed_label_prefixes: Vec<String>,
+    /// Grace window before label-based seeding kicks in. An open issue
+    /// must have been quiet (no `updated_at` change) for at least this
+    /// many hours before its labels are trusted as evidence of a prior
+    /// triage. `0` (default) means seed immediately.
+    #[serde(default)]
+    pub triage_managed_label_grace_hours: u32,
 
     // ── Analyze PRs ───────────────────────────────────────────────
     #[serde(default)]
@@ -1512,6 +1525,10 @@ fn default_triage_no_labels_min_age_hours() -> u32 {
     24
 }
 
+fn default_triage_managed_label_prefixes() -> Vec<String> {
+    vec!["priority:".to_string(), "category:".to_string()]
+}
+
 impl Default for RepoFilters {
     fn default() -> Self {
         Self {
@@ -1523,6 +1540,8 @@ impl Default for RepoFilters {
             triage_max_age_days: 0,
             triage_relabel_labels: default_triage_relabel_labels(),
             triage_no_labels_min_age_hours: default_triage_no_labels_min_age_hours(),
+            triage_managed_label_prefixes: default_triage_managed_label_prefixes(),
+            triage_managed_label_grace_hours: 0,
             analyze_min_loc: 0,
             analyze_max_loc: 0,
             auto_pr_only_labels: Vec::new(),

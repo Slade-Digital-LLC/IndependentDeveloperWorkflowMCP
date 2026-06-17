@@ -57,6 +57,21 @@ pub trait DatabaseBackend: Send + Sync {
         content_hash: Option<&str>,
     ) -> Result<()>;
     fn get_triage_result(&self, issue_number: u64) -> Result<Option<TriageResultRow>>;
+    /// Insert `triage_results` stubs for open issues that already carry
+    /// wshm-managed labels on the forge but have no local row. Lets a
+    /// fresh install / migration / wiped state.db avoid re-spending LLM
+    /// credits on issues that are clearly already triaged. See
+    /// [`Database::seed_triage_stubs_from_labels`] for details. Default
+    /// impl returns 0 so a backend without label-aware seeding still
+    /// compiles — the SQLite impl overrides it.
+    fn seed_triage_stubs_from_labels(
+        &self,
+        managed_label_prefixes: &[String],
+        grace_hours: u32,
+    ) -> Result<u64> {
+        let _ = (managed_label_prefixes, grace_hours);
+        Ok(0)
+    }
     fn get_stale_triage_results(&self, max_age_hours: u32) -> Result<Vec<TriageResultRow>>;
     fn get_wshm_applied_labels(&self, issue_number: u64) -> Result<Vec<String>>;
     fn recent_activity(&self, limit: usize) -> Result<Vec<TriageResultRow>>;
@@ -231,6 +246,14 @@ impl DatabaseBackend for super::Database {
 
     fn get_triage_result(&self, issue_number: u64) -> Result<Option<TriageResultRow>> {
         self.get_triage_result(issue_number)
+    }
+
+    fn seed_triage_stubs_from_labels(
+        &self,
+        managed_label_prefixes: &[String],
+        grace_hours: u32,
+    ) -> Result<u64> {
+        self.seed_triage_stubs_from_labels(managed_label_prefixes, grace_hours)
     }
 
     fn get_stale_triage_results(&self, max_age_hours: u32) -> Result<Vec<TriageResultRow>> {
