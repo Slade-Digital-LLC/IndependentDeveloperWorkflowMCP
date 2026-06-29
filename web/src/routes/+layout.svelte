@@ -391,7 +391,7 @@
 				dismissable
 				bind:alertStatus={bannerOpen}
 				onclose={persistBannerDismiss}
-				class="mb-3 text-sm"
+				class="mb-3 text-sm !bg-yellow-900/20 !text-yellow-100 !border !border-yellow-700/50"
 			>
 				<span class="font-semibold">Anonymous GitHub mode.</span>
 				Public repos sync read-only with a 60 req/h limit; labels, comments, and auto-fix actions are skipped.

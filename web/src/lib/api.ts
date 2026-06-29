@@ -109,13 +109,14 @@ export interface TriageResult {
 
 export interface QueueEntry {
 	repo: string;
-	pr_number: number;
+	number: number;
 	title: string;
 	score: number;
-	ci_passing: boolean;
-	approvals: number;
-	has_conflicts: boolean;
-	risk: string | null;
+	ci_status: string | null;
+	mergeable: boolean | null;
+	risk_level: string | null;
+	pr_type: string | null;
+	created_at: string;
 }
 
 export interface ActivityEntry {
