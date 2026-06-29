@@ -23,6 +23,23 @@ fn first_after_prefix(labels: &[String], prefix: &str) -> Option<String> {
     })
 }
 
+/// Map a row from a `SELECT issue_number, category, confidence, priority,
+/// summary, is_simple_fix, acted_at, content_hash` query into a
+/// [`TriageResultRow`]. Shared by the three queries below so a column-order
+/// change only needs editing in one place.
+fn row_to_triage_result(row: &rusqlite::Row) -> rusqlite::Result<TriageResultRow> {
+    Ok(TriageResultRow {
+        issue_number: row.get(0)?,
+        category: row.get(1)?,
+        confidence: row.get(2)?,
+        priority: row.get(3)?,
+        summary: row.get(4)?,
+        is_simple_fix: row.get(5)?,
+        acted_at: row.get(6)?,
+        content_hash: row.get(7)?,
+    })
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TriageResultRow {
     pub issue_number: u64,
@@ -95,18 +112,7 @@ impl Database {
                  FROM triage_results WHERE issue_number = ?1",
             )?;
 
-            let result = stmt.query_row(params![issue_number], |row| {
-                Ok(TriageResultRow {
-                    issue_number: row.get(0)?,
-                    category: row.get(1)?,
-                    confidence: row.get(2)?,
-                    priority: row.get(3)?,
-                    summary: row.get(4)?,
-                    is_simple_fix: row.get(5)?,
-                    acted_at: row.get(6)?,
-                    content_hash: row.get(7)?,
-                })
-            });
+            let result = stmt.query_row(params![issue_number], row_to_triage_result);
 
             match result {
                 Ok(r) => Ok(Some(r)),
@@ -131,21 +137,30 @@ impl Database {
             )?;
 
             let rows = stmt
-                .query_map(rusqlite::params![cutoff_str], |row| {
-                    Ok(TriageResultRow {
-                        issue_number: row.get(0)?,
-                        category: row.get(1)?,
-                        confidence: row.get(2)?,
-                        priority: row.get(3)?,
-                        summary: row.get(4)?,
-                        is_simple_fix: row.get(5)?,
-                        acted_at: row.get(6)?,
-                        content_hash: row.get(7)?,
-                    })
-                })?
+                .query_map(rusqlite::params![cutoff_str], row_to_triage_result)?
                 .collect::<std::result::Result<Vec<_>, _>>()?;
 
             Ok(rows)
+        })
+    }
+
+    /// Load every triage result in a single query, keyed by issue number.
+    ///
+    /// Batch loader used by the web handlers to avoid an N+1 pattern where
+    /// `get_triage_result` was called once per open issue (each call took
+    /// the connection mutex and prepared a fresh statement).
+    pub fn get_all_triage_results(
+        &self,
+    ) -> Result<std::collections::HashMap<u64, TriageResultRow>> {
+        self.with_conn(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT issue_number, category, confidence, priority, summary, is_simple_fix, acted_at, content_hash
+                 FROM triage_results",
+            )?;
+            let rows = stmt
+                .query_map([], row_to_triage_result)?
+                .collect::<std::result::Result<Vec<_>, _>>()?;
+            Ok(rows.into_iter().map(|r| (r.issue_number, r)).collect())
         })
     }
 
@@ -165,6 +180,33 @@ impl Database {
         })
     }
 
+    /// Sum the count of wshm-applied labels per issue in a single query.
+    /// Returns a map of issue_number -> number of suggested_labels.
+    ///
+    /// Batch replacement for calling `get_wshm_applied_labels` once per open
+    /// issue (used by the revert-preview handler).
+    pub fn get_applied_label_counts(&self) -> Result<std::collections::HashMap<u64, usize>> {
+        self.with_conn(|conn| {
+            let mut stmt =
+                conn.prepare("SELECT issue_number, suggested_labels FROM triage_results")?;
+            let rows = stmt
+                .query_map([], |row| {
+                    let issue_number: u64 = row.get(0)?;
+                    let labels_json: String = row.get(1)?;
+                    Ok((issue_number, labels_json))
+                })?
+                .collect::<std::result::Result<Vec<_>, _>>()?;
+            let mut map = std::collections::HashMap::new();
+            for (issue_number, labels_json) in rows {
+                let count = serde_json::from_str::<Vec<String>>(&labels_json)
+                    .map(|v| v.len())
+                    .unwrap_or(0);
+                map.insert(issue_number, count);
+            }
+            Ok(map)
+        })
+    }
+
     /// Get recent triage activity (last N entries, most recent first).
     pub fn recent_activity(&self, limit: usize) -> Result<Vec<TriageResultRow>> {
         self.with_conn(|conn| {
@@ -175,18 +217,7 @@ impl Database {
                  LIMIT ?1",
             )?;
             let rows = stmt
-                .query_map(rusqlite::params![limit], |row| {
-                    Ok(TriageResultRow {
-                        issue_number: row.get(0)?,
-                        category: row.get(1)?,
-                        confidence: row.get(2)?,
-                        priority: row.get(3)?,
-                        summary: row.get(4)?,
-                        is_simple_fix: row.get(5)?,
-                        acted_at: row.get(6)?,
-                        content_hash: row.get(7)?,
-                    })
-                })?
+                .query_map(rusqlite::params![limit], row_to_triage_result)?
                 .collect::<std::result::Result<Vec<_>, _>>()?;
             Ok(rows)
         })
@@ -305,9 +336,14 @@ impl Database {
 
             let now = chrono::Utc::now().to_rfc3339();
             let mut inserted: u64 = 0;
-            for stub in stubs {
+            // Wrap the inserts in a single transaction so seeding K stubs
+            // costs one fsync instead of K (each bare conn.execute would
+            // auto-commit). On a fresh/wiped state.db this can be hundreds
+            // of issues.
+            let tx = conn.unchecked_transaction()?;
+            for stub in &stubs {
                 let suggested = serde_json::to_string(&stub.matched_labels)?;
-                let n = conn.execute(
+                let n = tx.execute(
                     "INSERT INTO triage_results (issue_number, category, confidence, priority, summary, suggested_labels, is_duplicate_of, is_simple_fix, relevant_files, acted_at, content_hash)
                      VALUES (?1, ?2, ?3, ?4, NULL, ?5, NULL, 0, '[]', ?6, ?7)
                      ON CONFLICT(issue_number) DO NOTHING",
@@ -323,6 +359,7 @@ impl Database {
                 )?;
                 inserted += n as u64;
             }
+            tx.commit()?;
 
             Ok(inserted)
         })

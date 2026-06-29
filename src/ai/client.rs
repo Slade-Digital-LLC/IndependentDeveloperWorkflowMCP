@@ -345,7 +345,9 @@ impl AiClient {
             ]
         });
 
-        let text = crate::retry::with_retry("AI: Anthropic", || async {
+        // Connect-only retry: a completion is non-idempotent (each accepted
+        // request is billed), so don't re-issue on a post-send body EOF.
+        let text = crate::retry::with_retry_connect_only("AI: Anthropic", || async {
             let response = self
                 .http
                 .post(&self.provider.api_url)
@@ -387,7 +389,8 @@ impl AiClient {
             "temperature": 0.1
         });
 
-        let text = crate::retry::with_retry("AI: OpenAI-compatible", || async {
+        // Connect-only retry: see Anthropic path above.
+        let text = crate::retry::with_retry_connect_only("AI: OpenAI-compatible", || async {
             let mut req = self
                 .http
                 .post(&self.provider.api_url)
@@ -442,7 +445,8 @@ impl AiClient {
             }
         });
 
-        let text = crate::retry::with_retry("AI: Google Gemini", || async {
+        // Connect-only retry: see Anthropic path above.
+        let text = crate::retry::with_retry_connect_only("AI: Google Gemini", || async {
             let response = self
                 .http
                 .post(&self.provider.api_url)

@@ -118,11 +118,16 @@ pub fn build_summary(config: &Config, db: &dyn DatabaseBackend) -> Result<Summar
         .filter(|p| p.mergeable == Some(false))
         .count();
 
+    // Batch-load triage results and PR analyses once to avoid N+1 queries
+    // (each open issue/PR was previously queried individually, twice).
+    let triage_map = db.get_all_triage_results().unwrap_or_default();
+    let analyses_map = db.get_all_pr_analyses().unwrap_or_default();
+
     // Collect high/critical priority issues only — sorted oldest first (most urgent)
     let now = chrono::Utc::now();
     let mut high_priority_issues = Vec::new();
     for issue in &open_issues {
-        if let Ok(Some(triage)) = db.get_triage_result(issue.number) {
+        if let Some(triage) = triage_map.get(&issue.number) {
             let is_high = matches!(triage.priority.as_deref(), Some("high") | Some("critical"));
             if !is_high {
                 continue;
@@ -153,15 +158,15 @@ pub fn build_summary(config: &Config, db: &dyn DatabaseBackend) -> Result<Summar
     };
     let mut top_issues = Vec::new();
     for issue in &open_issues {
-        let triage = db.get_triage_result(issue.number).ok().flatten();
+        let triage = triage_map.get(&issue.number);
         let age_days = chrono::DateTime::parse_from_rfc3339(&issue.created_at)
             .map(|dt| (now - dt.with_timezone(&chrono::Utc)).num_days())
             .unwrap_or(0);
         top_issues.push(IssueBrief {
             number: issue.number,
             title: crate::pipelines::truncate(&issue.title, 80),
-            priority: triage.as_ref().and_then(|t| t.priority.clone()),
-            category: triage.as_ref().map(|t| t.category.clone()),
+            priority: triage.and_then(|t| t.priority.clone()),
+            category: triage.map(|t| t.category.clone()),
             labels: issue.labels.clone(),
             age_days,
         });
@@ -177,7 +182,7 @@ pub fn build_summary(config: &Config, db: &dyn DatabaseBackend) -> Result<Summar
     let mut high_risk_prs = Vec::new();
     let mut top_prs = Vec::new();
     for pr in &open_pulls {
-        let analysis = db.get_pr_analysis(pr.number).ok().flatten();
+        let analysis = analyses_map.get(&pr.number);
         let has_conflicts = pr.mergeable == Some(false);
         let age_days = chrono::DateTime::parse_from_rfc3339(&pr.created_at)
             .map(|dt| (now - dt.with_timezone(&chrono::Utc)).num_days())
@@ -186,21 +191,18 @@ pub fn build_summary(config: &Config, db: &dyn DatabaseBackend) -> Result<Summar
         let brief = PrBrief {
             number: pr.number,
             title: crate::pipelines::truncate(&pr.title, 80),
-            risk_level: analysis.as_ref().map(|a| a.risk_level.clone()),
+            risk_level: analysis.map(|a| a.risk_level.clone()),
             ci_status: pr.ci_status.clone(),
             has_conflicts,
             age_days,
         };
 
-        let is_high_risk = analysis
-            .as_ref()
-            .map(|a| a.risk_level == "high")
-            .unwrap_or(false);
+        let is_high_risk = analysis.map(|a| a.risk_level == "high").unwrap_or(false);
         if is_high_risk || has_conflicts {
             high_risk_prs.push(PrBrief {
                 number: pr.number,
                 title: crate::pipelines::truncate(&pr.title, 80),
-                risk_level: analysis.map(|a| a.risk_level),
+                risk_level: analysis.map(|a| a.risk_level.clone()),
                 ci_status: pr.ci_status.clone(),
                 has_conflicts,
                 age_days,

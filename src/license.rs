@@ -341,7 +341,12 @@ fn cache_token(token: &str) -> Result<()> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let _ = fs::set_permissions(&path, fs::Permissions::from_mode(0o600));
+        if let Err(e) = fs::set_permissions(&path, fs::Permissions::from_mode(0o600)) {
+            tracing::warn!(
+                "Failed to set 0o600 on cached license token {}: {e}; it may be world-readable",
+                path.display()
+            );
+        }
     }
     Ok(())
 }
@@ -392,7 +397,12 @@ fn save_credential(key: &str, value: &str) -> Result<()> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let _ = fs::set_permissions(&path, fs::Permissions::from_mode(0o600));
+        if let Err(e) = fs::set_permissions(&path, fs::Permissions::from_mode(0o600)) {
+            tracing::warn!(
+                "Failed to set 0o600 on credentials file {}: {e}; secrets may be world-readable",
+                path.display()
+            );
+        }
     }
     Ok(())
 }

@@ -135,18 +135,21 @@ impl Client {
             self.owner, self.repo
         );
 
-        let response_body = crate::retry::with_retry("github: create draft PR", || async {
-            let response = self
-                .octocrab
-                ._post(&url, Some(&pr_body))
-                .await
-                .context("Failed to create draft pull request")?;
-            self.octocrab
-                .body_to_string(response)
-                .await
-                .context("Failed to read create PR response")
-        })
-        .await?;
+        // Connect-only retry: re-issuing after a post-send EOF would create
+        // a duplicate draft PR.
+        let response_body =
+            crate::retry::with_retry_connect_only("github: create draft PR", || async {
+                let response = self
+                    .octocrab
+                    ._post(&url, Some(&pr_body))
+                    .await
+                    .context("Failed to create draft pull request")?;
+                self.octocrab
+                    .body_to_string(response)
+                    .await
+                    .context("Failed to read create PR response")
+            })
+            .await?;
 
         let pr_json: serde_json::Value =
             serde_json::from_str(&response_body).context("Failed to parse create PR response")?;

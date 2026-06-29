@@ -137,12 +137,62 @@ pub fn is_transient(err: &anyhow::Error) -> bool {
     TRANSIENT.iter().any(|needle| msg.contains(needle))
 }
 
+/// Connect-level subset of [`is_transient`]: errors that prove the request
+/// never reached (or was never accepted by) the server, so re-issuing it
+/// cannot duplicate a server-side effect.
+///
+/// This deliberately EXCLUDES post-send failures like
+/// `"error reading a body"` / `"end of file before message length reached"`:
+/// those frequently happen AFTER the server has fully processed a POST but
+/// the response read failed. Retrying a non-idempotent create on those would
+/// duplicate the issue/PR/review/comment, so write call sites must use
+/// [`with_retry_connect_only`] instead of [`with_retry`].
+pub fn is_transient_connect(err: &anyhow::Error) -> bool {
+    let msg = format!("{err:#}").to_lowercase();
+    const CONNECT_TRANSIENT: &[&str] = &[
+        "connection refused",
+        "error sending request",
+        "tls handshake",
+        "dns error",
+        "failed to lookup address",
+        "timed out",
+        "operation timed out",
+    ];
+    CONNECT_TRANSIENT.iter().any(|needle| msg.contains(needle))
+}
+
 /// Run `op`, retrying transient failures per the global [`RetryConfig`].
 ///
 /// `op` is a closure that returns a fresh future on each call, so a retry
 /// genuinely re-issues the request (and picks a fresh pooled connection).
 /// `label` names the operation for log lines.
 pub async fn with_retry<T, F, Fut>(label: &str, op: F) -> anyhow::Result<T>
+where
+    F: Fn() -> Fut,
+    Fut: Future<Output = anyhow::Result<T>>,
+{
+    with_retry_classified(label, is_transient, op).await
+}
+
+/// Like [`with_retry`] but only retries connect-level failures (see
+/// [`is_transient_connect`]). Use this for NON-idempotent writes (POST
+/// creates: issues, PRs, reviews, comments, AI completions) so a response
+/// body-read EOF on an already-processed request does not duplicate the
+/// server-side effect.
+pub async fn with_retry_connect_only<T, F, Fut>(label: &str, op: F) -> anyhow::Result<T>
+where
+    F: Fn() -> Fut,
+    Fut: Future<Output = anyhow::Result<T>>,
+{
+    with_retry_classified(label, is_transient_connect, op).await
+}
+
+/// Shared retry loop parameterized by the transient-error classifier.
+async fn with_retry_classified<T, F, Fut>(
+    label: &str,
+    is_retryable: fn(&anyhow::Error) -> bool,
+    op: F,
+) -> anyhow::Result<T>
 where
     F: Fn() -> Fut,
     Fut: Future<Output = anyhow::Result<T>>,
@@ -159,7 +209,7 @@ where
         match op().await {
             Ok(value) => return Ok(value),
             Err(err) => {
-                if attempt >= max || !cfg.enabled || !is_transient(&err) {
+                if attempt >= max || !cfg.enabled || !is_retryable(&err) {
                     return Err(err);
                 }
                 let backoff = backoff_delay(&cfg, attempt);
@@ -236,6 +286,47 @@ mod tests {
         .await;
         assert_eq!(result.unwrap(), 3);
         assert_eq!(calls.load(Ordering::SeqCst), 3);
+    }
+
+    #[test]
+    fn connect_only_excludes_post_send_eof() {
+        // A response body-read EOF must NOT be retried for writes: the
+        // server may have already processed the POST.
+        let eof = anyhow::anyhow!(
+            "error reading a body from connection: end of file before message length reached"
+        );
+        assert!(is_transient(&eof), "EOF is transient for idempotent reads");
+        assert!(
+            !is_transient_connect(&eof),
+            "EOF must NOT be connect-transient (would duplicate a write)"
+        );
+
+        // Connect-level failures are safe to re-issue: the request never
+        // reached the server.
+        let refused = anyhow::anyhow!("error sending request: connection refused");
+        assert!(is_transient_connect(&refused));
+    }
+
+    #[tokio::test]
+    async fn connect_only_does_not_retry_body_eof() {
+        set_global(RetryConfig {
+            enabled: true,
+            max_attempts: 5,
+            initial_backoff_ms: 50,
+            max_backoff_ms: 100,
+        });
+        let calls = AtomicU32::new(0);
+        let result: anyhow::Result<u32> = with_retry_connect_only("test", || async {
+            calls.fetch_add(1, Ordering::SeqCst);
+            anyhow::bail!("error reading a body: end of file before message length reached")
+        })
+        .await;
+        assert!(result.is_err());
+        assert_eq!(
+            calls.load(Ordering::SeqCst),
+            1,
+            "a post-send EOF must not be retried for writes"
+        );
     }
 
     #[tokio::test]

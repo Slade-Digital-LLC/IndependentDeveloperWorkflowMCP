@@ -931,8 +931,14 @@ impl WebConfig {
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
-                let _ =
-                    std::fs::set_permissions(&creds_path, std::fs::Permissions::from_mode(0o600));
+                if let Err(e) =
+                    std::fs::set_permissions(&creds_path, std::fs::Permissions::from_mode(0o600))
+                {
+                    tracing::warn!(
+                        "Failed to set 0o600 on {}: {e}; web credentials may be world-readable",
+                        creds_path.display()
+                    );
+                }
             }
         }
 
