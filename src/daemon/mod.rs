@@ -526,7 +526,7 @@ pub async fn run_multi_with_extensions(
                 "WSHM_TRUST_PROXY_AUTH=1 but WSHM_PROXY_AUTH_TOKEN is unset. \
                  Forwarded-identity headers will be REJECTED (fail closed). \
                  Set WSHM_PROXY_AUTH_TOKEN to a shared secret your proxy adds as \
-                 X-Auth-Request-Token, or set WSHM_TRUST_PROXY_AUTH_NO_TOKEN=1 to \
+                 X-Wshm-Proxy-Token, or set WSHM_TRUST_PROXY_AUTH_NO_TOKEN=1 to \
                  explicitly rely on network isolation alone."
             );
         }

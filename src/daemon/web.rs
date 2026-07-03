@@ -272,8 +272,10 @@ pub fn verify_user_cookie(value: &str) -> Option<i64> {
 /// those headers and authenticate as any email.
 ///
 /// When `WSHM_PROXY_AUTH_TOKEN` is set, the proxy must additionally forward a
-/// matching `X-Auth-Request-Token` header (compared in constant time), so mere
-/// header presence is no longer sufficient.
+/// matching `X-Wshm-Proxy-Token` header (compared in constant time), so mere
+/// header presence is no longer sufficient. A dedicated header name (rather than
+/// the `X-Auth-Request-*` family) avoids any collision with headers oauth2-proxy
+/// sets/strips itself, so the shared secret survives the proxy hop intact.
 ///
 /// Fail-closed by default: if `WSHM_TRUST_PROXY_AUTH` is enabled but no shared
 /// secret is configured, forwarded-identity headers are REJECTED. Trusting
@@ -294,7 +296,7 @@ fn proxy_shared_secret_ok(headers: &HeaderMap) -> bool {
             .is_some();
     }
     let presented = headers
-        .get("x-auth-request-token")
+        .get("x-wshm-proxy-token")
         .and_then(|v| v.to_str().ok())
         .unwrap_or("");
     ct_eq(presented.as_bytes(), expected.as_bytes())
