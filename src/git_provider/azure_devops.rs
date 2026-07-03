@@ -94,7 +94,11 @@ impl AzureDevOpsProvider {
     }
 
     async fn post(&self, url: &str, body: &serde_json::Value) -> Result<serde_json::Value> {
-        crate::retry::with_retry("Azure DevOps POST", || async {
+        // Connect-only retry: POST creates non-idempotent resources (comments,
+        // threads). A response-body EOF after the server already created the
+        // resource must NOT be retried, or the comment is duplicated. The one
+        // read-only POST caller (WIQL query) is also safe under connect-only.
+        crate::retry::with_retry_connect_only("Azure DevOps POST", || async {
             let resp = self
                 .http
                 .post(url)

@@ -155,11 +155,19 @@ async fn sync_pulls_finalize(
             "Fetching mergeable status for {} PRs (concurrent)...",
             needs_mergeable.len()
         );
-        let results: Vec<(usize, Result<Option<bool>>)> = futures::future::join_all(
+        // Bound concurrency so a large open-PR backlog doesn't fire hundreds
+        // of simultaneous GitHub GETs (each also retrying with backoff),
+        // which risks secondary/abuse rate limits and connection-pool
+        // exhaustion. Keep N small to stay well under the abuse threshold.
+        use futures::stream::StreamExt;
+        const MERGEABLE_CONCURRENCY: usize = 6;
+        let results: Vec<(usize, Result<Option<bool>>)> = futures::stream::iter(
             needs_mergeable
-                .iter()
-                .map(|&(idx, number)| async move { (idx, gh.fetch_pr_mergeable(number).await) }),
+                .into_iter()
+                .map(|(idx, number)| async move { (idx, gh.fetch_pr_mergeable(number).await) }),
         )
+        .buffer_unordered(MERGEABLE_CONCURRENCY)
+        .collect()
         .await;
 
         for (idx, result) in results {

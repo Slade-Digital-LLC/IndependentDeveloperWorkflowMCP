@@ -62,6 +62,34 @@ impl Database {
         })
     }
 
+    /// Load every PR analysis in a single query, keyed by PR number.
+    ///
+    /// Batch loader used by the web handlers to avoid an N+1 pattern where
+    /// `get_pr_analysis` was called once per open PR (each call took the
+    /// connection mutex and prepared a fresh statement).
+    pub fn get_all_pr_analyses(&self) -> Result<std::collections::HashMap<u64, PrAnalysisRow>> {
+        self.with_conn(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT pr_number, summary, risk_level, pr_type, review_notes, analyzed_at, content_hash
+                 FROM pr_analyses",
+            )?;
+            let rows = stmt
+                .query_map([], |row| {
+                    Ok(PrAnalysisRow {
+                        pr_number: row.get(0)?,
+                        summary: row.get(1)?,
+                        risk_level: row.get(2)?,
+                        pr_type: row.get(3)?,
+                        review_notes: row.get(4)?,
+                        analyzed_at: row.get(5)?,
+                        content_hash: row.get(6)?,
+                    })
+                })?
+                .collect::<std::result::Result<Vec<_>, _>>()?;
+            Ok(rows.into_iter().map(|r| (r.pr_number, r)).collect())
+        })
+    }
+
     pub fn upsert_pull(&self, pr: &PullRequest) -> Result<()> {
         self.with_conn(|conn| {
             upsert_pull(conn, pr)?;

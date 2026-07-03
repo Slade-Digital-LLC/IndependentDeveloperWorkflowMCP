@@ -180,19 +180,39 @@ impl MultiDaemonState {
             .as_ref()
             .context("Dynamic add_repo not available (daemon not running in multi-repo mode)")?;
 
-        if !slug.contains('/') || slug.split('/').count() != 2 {
+        // Validate the slug: exactly two non-empty owner/repo segments, and
+        // no segment may be a path-traversal token (`.` / `..`) or contain a
+        // separator, so a value like "owner/.." can never become a directory
+        // component of ".." when we derive the on-disk path from it.
+        let segments: Vec<&str> = slug.split('/').collect();
+        if segments.len() != 2
+            || segments
+                .iter()
+                .any(|s| s.is_empty() || *s == "." || *s == ".." || s.contains('\\'))
+        {
             anyhow::bail!("invalid slug format, expected owner/repo");
         }
 
-        let path = path.unwrap_or_else(|| {
-            let name = slug.split('/').next_back().unwrap_or(slug);
-            runtime
-                .global_config_path
-                .parent()
-                .unwrap_or(std::path::Path::new("."))
-                .join("repos")
-                .join(name)
-        });
+        let repos_base = runtime
+            .global_config_path
+            .parent()
+            .unwrap_or(std::path::Path::new("."))
+            .join("repos");
+        let path = match path {
+            // A caller-supplied path is anchored under the repos/ base and must
+            // not escape it (the web layer already rejects absolute paths and
+            // ".." segments; re-check defensively here).
+            Some(p) => {
+                if p.is_absolute() || p.components().any(|c| c.as_os_str() == "..") {
+                    anyhow::bail!("repo path must be relative and must not contain '..'");
+                }
+                repos_base.join(p)
+            }
+            None => {
+                let name = segments[1];
+                repos_base.join(name)
+            }
+        };
 
         {
             let repos = self.repos.read().await;
@@ -492,6 +512,22 @@ pub async fn run_multi_with_extensions(
                  Make sure ONLY your reverse proxy can reach this port — anyone \
                  else can forge X-Forwarded-Email and bypass auth. On K8s, see \
                  deploy/k8s/networkpolicy.yaml."
+            );
+        }
+        let has_token = std::env::var("WSHM_PROXY_AUTH_TOKEN")
+            .map(|v| !v.is_empty())
+            .unwrap_or(false);
+        let isolation_ack = std::env::var("WSHM_TRUST_PROXY_AUTH_NO_TOKEN")
+            .ok()
+            .filter(|v| v == "1" || v == "true")
+            .is_some();
+        if !has_token && !isolation_ack {
+            warn!(
+                "WSHM_TRUST_PROXY_AUTH=1 but WSHM_PROXY_AUTH_TOKEN is unset. \
+                 Forwarded-identity headers will be REJECTED (fail closed). \
+                 Set WSHM_PROXY_AUTH_TOKEN to a shared secret your proxy adds as \
+                 X-Wshm-Proxy-Token, or set WSHM_TRUST_PROXY_AUTH_NO_TOKEN=1 to \
+                 explicitly rely on network isolation alone."
             );
         }
     }

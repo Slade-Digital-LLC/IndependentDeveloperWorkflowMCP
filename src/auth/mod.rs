@@ -424,6 +424,20 @@ pub fn verify_password(password: &str, hash: &str) -> bool {
         .is_ok()
 }
 
+/// A valid argon2 PHC hash of a fixed throwaway password, computed once per
+/// process. Login paths verify a supplied password against this when the
+/// looked-up user (or its password hash) is missing, so a non-existent
+/// account pays the same argon2 cost as a real wrong password — closing the
+/// username-enumeration timing oracle.
+pub fn dummy_password_hash() -> &'static str {
+    use std::sync::OnceLock;
+    static DUMMY: OnceLock<String> = OnceLock::new();
+    DUMMY.get_or_init(|| {
+        hash_password("wshm-dummy-password-for-constant-time-verification")
+            .expect("hashing a fixed dummy password cannot fail")
+    })
+}
+
 /// First-boot admin seed. If the `users` table is empty, create a local
 /// admin account so the operator can log in.
 ///

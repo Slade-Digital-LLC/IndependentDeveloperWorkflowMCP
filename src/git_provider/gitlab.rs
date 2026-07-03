@@ -73,7 +73,10 @@ impl GitLabProvider {
 
     async fn post(&self, path: &str, body: &serde_json::Value) -> Result<serde_json::Value> {
         let url = self.api_url(path);
-        crate::retry::with_retry("GitLab POST", || async {
+        // Connect-only retry: POST creates non-idempotent resources (notes,
+        // discussions). A response-body EOF after the server already created
+        // the note must NOT be retried, or the comment/review is duplicated.
+        crate::retry::with_retry_connect_only("GitLab POST", || async {
             let resp = self
                 .http
                 .post(&url)

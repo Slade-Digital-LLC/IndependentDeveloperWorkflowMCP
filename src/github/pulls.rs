@@ -332,7 +332,9 @@ impl Client {
             self.owner, self.repo
         );
 
-        crate::retry::with_retry("github: submit review", || async {
+        // Connect-only retry: re-issuing after a post-send EOF would submit
+        // a duplicate review.
+        crate::retry::with_retry_connect_only("github: submit review", || async {
             let response = self
                 .octocrab
                 ._post(&url, Some(&review_body))
@@ -363,7 +365,9 @@ impl Client {
             self.owner, self.repo
         );
 
-        let response_body = crate::retry::with_retry("github: create PR", || async {
+        // Connect-only retry: re-issuing after a post-send EOF would create
+        // a duplicate pull request.
+        let response_body = crate::retry::with_retry_connect_only("github: create PR", || async {
             let response = self
                 .octocrab
                 ._post(&url, Some(&pr_body))

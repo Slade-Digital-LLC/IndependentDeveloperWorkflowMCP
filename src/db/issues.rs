@@ -247,22 +247,27 @@ pub fn get_issues_needing_triage(
         }
 
         let (issue, stored_hash, acted_at) = row?;
-        let current_hash = compute_issue_hash(&issue.title, issue.body.as_deref());
 
+        // Short-circuit: a never-triaged issue (no stored hash) always
+        // needs triage, so we can skip the comparatively expensive content
+        // hash computation entirely.
         let needs_triage = stored_hash.is_none()
-            || stored_hash.as_deref() != Some(current_hash.as_str())
+            || stored_hash.as_deref()
+                != Some(compute_issue_hash(&issue.title, issue.body.as_deref()).as_str())
             || (!relabel_labels.is_empty()
                 && issue
                     .labels
                     .iter()
                     .any(|l| relabel_labels.iter().any(|r| r.eq_ignore_ascii_case(l))))
-            || (age_cutoff.is_some()
-                && issue.labels.is_empty()
-                && acted_at
-                    .as_deref()
-                    .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
-                    .map(|dt| dt.with_timezone(&chrono::Utc) < age_cutoff.unwrap())
-                    .unwrap_or(false));
+            || (issue.labels.is_empty()
+                && match age_cutoff {
+                    Some(cutoff) => acted_at
+                        .as_deref()
+                        .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
+                        .map(|dt| dt.with_timezone(&chrono::Utc) < cutoff)
+                        .unwrap_or(false),
+                    None => false,
+                });
 
         if needs_triage {
             issues_needing_triage.push(issue);
