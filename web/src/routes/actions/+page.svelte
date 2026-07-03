@@ -48,8 +48,14 @@
 		return doneKeys.has(key);
 	}
 	function toggleDone(key: string) {
-		if (doneKeys.has(key)) doneKeys.delete(key);
-		else doneKeys.add(key);
+		// Reassign a new Set (not .add/.delete on the existing one): Svelte 5
+		// `$state` does not track Set/Map mutations, only reassignment — so an
+		// in-place mutate leaves the filtered lists stale and the click looks
+		// like it does nothing.
+		const next = new Set(doneKeys);
+		if (next.has(key)) next.delete(key);
+		else next.add(key);
+		doneKeys = next;
 		persistDone();
 	}
 	function persistDone() {
