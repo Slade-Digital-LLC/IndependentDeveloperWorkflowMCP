@@ -2034,7 +2034,7 @@ full_sync_interval_hours = 24
 # Or use env var: WSHM_LICENSE_KEY=WSHM-XXXX-XXXX-XXXX
 
 # [vault]
-# provider = "hashicorp"               # "hashicorp" | "aws" | "azure" | "gcp"
+# provider = "hashicorp"               # "hashicorp" | "aws" | "gcp"
 # address = "https://vault.example.com"
 # mount = "secret"
 # Auth from env: VAULT_TOKEN, VAULT_ROLE_ID, etc.
@@ -2060,7 +2060,7 @@ full_sync_interval_hours = 24
 # secret = "hmac-secret"
 
 # [export.storage]
-# provider = "s3"                      # "s3" | "azure" | "gcs"
+# provider = "s3"                      # "s3" | "gcs"
 # bucket = "wshm-logs"
 # prefix = "repos/{repo}/"
 # region = "eu-west-1"
