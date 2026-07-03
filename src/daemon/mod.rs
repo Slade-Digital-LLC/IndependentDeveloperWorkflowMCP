@@ -555,11 +555,16 @@ pub async fn run_multi_with_extensions(
     let mut repos = HashMap::new();
     let mut web_password_resolved = false;
     for entry in &global.repos {
-        // Stateless deploys mount the repos dir as an emptyDir, so the
-        // checkout may be missing on first boot. Clone it from GitHub
-        // using GITHUB_TOKEN before the rest of the setup runs.
+        // A local checkout is only needed by code-editing features
+        // (auto-fix PR generation). Triage and PR analysis run entirely
+        // off the GitHub API, so skip the boot clone unless auto-fix is
+        // enabled for this repo — it's slow, depends on a valid
+        // GITHUB_TOKEN, and its failure otherwise logs a misleading
+        // "daemon may degrade" for repos that never needed the checkout.
+        // Stateless deploys mount repos/ as an emptyDir, so when it IS
+        // needed the checkout may be missing on first boot; clone it here.
         // Skipped when the entry path already contains a checkout.
-        if !entry.path.join(".git").exists() {
+        if entry.features.auto_pr && !entry.path.join(".git").exists() {
             if let Ok(token) = std::env::var("GITHUB_TOKEN") {
                 let url = format!("https://github.com/{}.git", entry.slug);
                 if let Some(parent) = entry.path.parent() {
