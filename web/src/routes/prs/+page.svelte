@@ -46,7 +46,7 @@
 	let enriched = $derived(pulls.map(p => ({
 		...p,
 		age: ageDays(p.created_at),
-		conflicts: p.mergeable === false ? 'yes' : 'no'
+		conflicts: p.mergeable === false ? 'yes' : (p.mergeable === true ? 'no' : 'unknown')
 	})));
 
 	let filtered = $derived(applyFilters(enriched, {
@@ -198,10 +198,15 @@
 							{/if}
 						</TableBodyCell>
 						<TableBodyCell class="px-2 py-1.5">
+							<!-- Only the actionable state gets color: a red badge for real
+							     conflicts. "no" is the normal case (plain text) and unknown
+							     mergeability is "-" instead of a misleading green "no". -->
 							{#if pr.mergeable === false}
 								<Badge color="red">yes</Badge>
+							{:else if pr.mergeable === true}
+								<span class="text-gray-500 text-xs">no</span>
 							{:else}
-								<Badge color="green">no</Badge>
+								<span class="text-gray-500">-</span>
 							{/if}
 						</TableBodyCell>
 						<TableBodyCell class="px-2 py-1.5 text-gray-500 mono">{timeAgo(pr.created_at)}</TableBodyCell>

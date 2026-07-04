@@ -184,7 +184,8 @@
 		style="width: {collapsed ? '52px' : '180px'}"
 	>
 		<div class="flex items-center gap-2 px-3 py-3 border-b border-gray-700">
-			<img src="/wizard-icon.png" alt="wshm" class="h-7 w-7 flex-shrink-0" />
+			<!-- Dark backdrop keeps the (dark) logo art visible on the light theme. -->
+			<img src="/wizard-icon.png" alt="wshm" class="h-7 w-7 flex-shrink-0 rounded-md bg-gray-900 p-0.5" />
 			{#if !collapsed}
 				<span class="text-base font-bold text-gray-100 truncate">wshm</span>
 			{/if}
@@ -192,9 +193,13 @@
 
 		{#if !collapsed}
 			<div class="px-3 py-2 border-b border-gray-700 space-y-1.5">
+				<!-- Empty placeholder: otherwise Flowbite prepends its own
+				     "Choose option ..." entry which wins over the value=''
+				     "All repos" item and makes the active repo unreadable. -->
 				<Select
 					bind:value={selectedRepoValue}
 					items={repoOptions}
+					placeholder=""
 					size="sm"
 					class="bg-gray-900 border-gray-600 text-gray-300 text-xs"
 				/>
@@ -391,7 +396,7 @@
 				dismissable
 				bind:alertStatus={bannerOpen}
 				onclose={persistBannerDismiss}
-				class="mb-3 text-sm !bg-yellow-900/20 !text-yellow-100 !border !border-yellow-700/50"
+				class="mb-3 text-sm !border !bg-yellow-50 !text-yellow-900 !border-yellow-300 dark:!bg-yellow-900/20 dark:!text-yellow-100 dark:!border-yellow-700/50"
 			>
 				<span class="font-semibold">Anonymous GitHub mode.</span>
 				Public repos sync read-only with a 60 req/h limit; labels, comments, and auto-fix actions are skipped.
