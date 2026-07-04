@@ -22,6 +22,9 @@
 
 	let entries: QueueEntry[] = $state([]);
 	let error: string | null = $state(null);
+	// True until the first fetch settles - stops the empty-state text from
+	// flashing "No results" while the list is still loading.
+	let loading = $state(true);
 	let sortColumns: SortColumn[] = $state([{ key: 'score', asc: false }]);
 	let filters: Record<string, string> = $state({
 		number: '', title: '', score: '', ci: '', conflicts: '', risk: ''
@@ -71,6 +74,8 @@
 		} catch (e) {
 			if (myToken !== loadToken) return;
 			error = e instanceof Error ? e.message : 'Failed to load merge queue';
+		} finally {
+			if (myToken === loadToken) loading = false;
 		}
 	}
 
@@ -203,7 +208,7 @@
 					</TableBodyRow>
 				{:else}
 					<TableBodyRow>
-						<TableBodyCell colspan={7} class="text-center text-gray-600 py-8">No pull requests in queue</TableBodyCell>
+						<TableBodyCell colspan={7} class="text-center text-gray-600 py-8">{loading ? 'Loading…' : 'No pull requests in queue'}</TableBodyCell>
 					</TableBodyRow>
 				{/each}
 			</TableBody>

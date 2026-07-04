@@ -22,6 +22,9 @@
 
 	let pulls: PullRequest[] = $state([]);
 	let error: string | null = $state(null);
+	// True until the first fetch settles - stops the empty-state text from
+	// flashing "No results" while the list is still loading.
+	let loading = $state(true);
 	let sortColumns: SortColumn[] = $state([{ key: 'risk_level', asc: true }, { key: 'age', asc: false }]);
 	let filters: Record<string, string> = $state({
 		number: '', title: '', state: '', base_ref: '', risk: '', ci_status: '', conflicts: '', age: ''
@@ -84,6 +87,8 @@
 		} catch (e) {
 			if (myToken !== loadToken) return;
 			error = e instanceof Error ? e.message : 'Failed to load pull requests';
+		} finally {
+			if (myToken === loadToken) loading = false;
 		}
 	}
 
@@ -213,7 +218,7 @@
 					</TableBodyRow>
 				{:else}
 					<TableBodyRow>
-						<TableBodyCell colspan={7} class="text-center text-gray-600 py-8">No pull requests found</TableBodyCell>
+						<TableBodyCell colspan={7} class="text-center text-gray-600 py-8">{loading ? 'Loading…' : 'No pull requests found'}</TableBodyCell>
 					</TableBodyRow>
 				{/each}
 			</TableBody>
