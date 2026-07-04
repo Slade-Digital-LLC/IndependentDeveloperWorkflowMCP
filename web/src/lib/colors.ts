@@ -28,7 +28,9 @@ export interface ColorConfig {
 const STORAGE_KEY = 'wshm-color-config';
 
 const defaults: ColorConfig = {
-	noPr: '#6b2126',
+	// "No PR" is the normal state for most issues — keep it neutral so red
+	// stays reserved for real signals (critical priority, conflicts, high risk).
+	noPr: '#30363d',
 	hasPr: '#1e3a5f',
 	prReady: '#1a4731',
 
