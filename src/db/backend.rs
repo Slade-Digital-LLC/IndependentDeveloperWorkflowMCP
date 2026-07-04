@@ -104,6 +104,19 @@ pub trait DatabaseBackend: Send + Sync {
     /// against any backend that implements this trait.
     fn upsert_pr_analysis(&self, row: &PrAnalysisRow) -> Result<()>;
 
+    /// Apply freshly-synced GitHub review decisions (PR number → decision)
+    /// to open PRs; PRs absent from the map get their decision cleared.
+    /// Backs the "To Validate" review-radar view. Default impl is a no-op
+    /// returning 0 so backends without the columns keep compiling — the
+    /// SQLite impl overrides it.
+    fn set_review_decisions(
+        &self,
+        decisions: &std::collections::HashMap<u64, Option<String>>,
+    ) -> Result<u64> {
+        let _ = decisions;
+        Ok(0)
+    }
+
     // ── Admin / maintenance ─────────────────────────────────────
 
     /// Wipe every triage result and PR analysis. Used by the `revert` flow
@@ -357,6 +370,13 @@ impl DatabaseBackend for super::Database {
 
     fn upsert_pr_analysis(&self, row: &PrAnalysisRow) -> Result<()> {
         self.upsert_pr_analysis(row)
+    }
+
+    fn set_review_decisions(
+        &self,
+        decisions: &std::collections::HashMap<u64, Option<String>>,
+    ) -> Result<u64> {
+        self.set_review_decisions(decisions)
     }
 
     fn clear_triage_and_analyses(&self) -> Result<()> {

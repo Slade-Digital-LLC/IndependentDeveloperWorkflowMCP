@@ -95,6 +95,10 @@ export interface PullRequest {
 	mergeable: boolean | null;
 	created_at: string;
 	updated_at: string;
+	/** GitHub review decision: "approved" | "changes_requested" | "review_required" | null. */
+	review_decision?: string | null;
+	/** When the current review decision was first observed (RFC3339). */
+	review_decision_at?: string | null;
 }
 
 export interface TriageResult {

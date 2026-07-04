@@ -50,6 +50,9 @@ fn parse_pull(pr: &serde_json::Value) -> PullRequest {
         ci_status: None,
         created_at: pr["created_at"].as_str().unwrap_or("").to_string(),
         updated_at: pr["updated_at"].as_str().unwrap_or("").to_string(),
+        // Populated by the dedicated review-decision sync pass, not here.
+        review_decision: None,
+        review_decision_at: None,
     }
 }
 
@@ -122,6 +125,63 @@ impl Client {
 
     pub async fn fetch_pulls(&self) -> Result<Vec<PullRequest>> {
         self.fetch_pulls_by_state("all").await
+    }
+
+    /// Fetch GitHub review decisions for every open PR via the Search API.
+    ///
+    /// Three bucket queries (`review:approved` / `review:changes-requested`
+    /// / `review:required`) instead of one reviews call per PR, so the API
+    /// cost stays bounded (3–30 requests) regardless of backlog size.
+    /// Returns PR number → decision; open PRs absent from every bucket
+    /// carry no decision (the DB layer clears them).
+    pub async fn fetch_review_decisions(
+        &self,
+    ) -> Result<std::collections::HashMap<u64, Option<String>>> {
+        let mut map = std::collections::HashMap::new();
+        for (qualifier, decision) in [
+            ("review:approved", "approved"),
+            ("review:changes-requested", "changes_requested"),
+            ("review:required", "review_required"),
+        ] {
+            let query = format!(
+                "repo:{}/{} is:pr is:open {qualifier}",
+                self.owner, self.repo
+            );
+            let mut page = 1u32;
+            loop {
+                let url = format!(
+                    "https://api.github.com/search/issues?q={}&per_page=100&page={page}",
+                    urlencoding::encode(&query)
+                );
+                let body = crate::retry::with_retry("github: search review decisions", || async {
+                    let resp = self
+                        .octocrab
+                        ._get(&url)
+                        .await
+                        .context("Failed to search review decisions")?;
+                    self.octocrab
+                        .body_to_string(resp)
+                        .await
+                        .context("Failed to read search response body")
+                })
+                .await?;
+                let json: serde_json::Value = serde_json::from_str(&body)
+                    .context("Failed to parse review-decision search response")?;
+                let items = json["items"].as_array().cloned().unwrap_or_default();
+                let n = items.len();
+                for item in &items {
+                    if let Some(number) = item["number"].as_u64() {
+                        map.insert(number, Some(decision.to_string()));
+                    }
+                }
+                // The Search API caps results at 1000 (10 pages of 100).
+                if n < 100 || page >= 10 {
+                    break;
+                }
+                page += 1;
+            }
+        }
+        Ok(map)
     }
 
     /// Fetch pull requests filtered by state ("open", "closed", or "all").
