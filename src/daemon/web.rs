@@ -1307,6 +1307,8 @@ async fn api_pulls(
                     "ci_status": pr.ci_status,
                     "created_at": pr.created_at,
                     "updated_at": pr.updated_at,
+                    "review_decision": pr.review_decision,
+                    "review_decision_at": pr.review_decision_at,
                     "risk_level": analysis.map(|a| a.risk_level.as_str()),
                     "pr_type": analysis.map(|a| a.pr_type.as_str()),
                     "summary": analysis.map(|a| a.summary.as_str()),

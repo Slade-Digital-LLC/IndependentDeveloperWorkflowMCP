@@ -183,6 +183,19 @@ async fn sync_pulls_finalize(
 
     db.batch_upsert_pulls(pulls)?;
 
+    // Review decisions back the "To Validate" view (ready-to-merge /
+    // awaiting-re-review buckets). Best-effort: a Search API failure
+    // (anonymous rate limit, transient error) must not fail the sync —
+    // the previous decisions simply stay in place until the next pass.
+    match gh.fetch_review_decisions().await {
+        Ok(decisions) => match db.set_review_decisions(&decisions) {
+            Ok(0) => {}
+            Ok(n) => info!("Review decisions updated for {n} PR(s)"),
+            Err(e) => tracing::warn!("Failed to store review decisions: {e}"),
+        },
+        Err(e) => tracing::warn!("Failed to fetch review decisions: {e}"),
+    }
+
     let now = Utc::now().to_rfc3339();
     db.update_sync_entry("pulls", &now, None)?;
 

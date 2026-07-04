@@ -18,6 +18,17 @@ pub struct PullRequest {
     pub ci_status: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+    /// GitHub review decision for open PRs: "approved" /
+    /// "changes_requested" / "review_required" (None when unknown or not
+    /// yet synced). Maintained by a dedicated sync pass — NOT written by
+    /// the upsert path, so a regular PR sync never wipes it.
+    #[serde(default)]
+    pub review_decision: Option<String>,
+    /// When the current `review_decision` value was first observed. Lets
+    /// the UI detect "author pushed after changes were requested"
+    /// (updated_at > review_decision_at) without per-review API calls.
+    #[serde(default)]
+    pub review_decision_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -111,6 +122,47 @@ impl Database {
         })
     }
 
+    /// Apply freshly-synced GitHub review decisions to open PRs.
+    ///
+    /// `decisions` maps PR number → decision ("approved" /
+    /// "changes_requested" / "review_required"); open PRs absent from the
+    /// map get their decision cleared (no review activity bucket matched).
+    /// `review_decision_at` is only rewritten when the decision VALUE
+    /// changes, so the UI can detect "author pushed after the decision"
+    /// via `updated_at > review_decision_at`. Returns the number of PRs
+    /// whose decision changed.
+    pub fn set_review_decisions(
+        &self,
+        decisions: &std::collections::HashMap<u64, Option<String>>,
+    ) -> Result<u64> {
+        self.with_conn(|conn| {
+            let tx = conn.unchecked_transaction()?;
+            let now = chrono::Utc::now().to_rfc3339();
+            let mut changed = 0u64;
+            {
+                let mut current = tx.prepare(
+                    "SELECT number, review_decision FROM pull_requests WHERE state = 'open'",
+                )?;
+                let rows: Vec<(u64, Option<String>)> = current
+                    .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+                    .collect::<Result<_, _>>()?;
+                let mut update = tx.prepare(
+                    "UPDATE pull_requests SET review_decision = ?1, review_decision_at = ?2
+                     WHERE number = ?3",
+                )?;
+                for (number, old) in rows {
+                    let new = decisions.get(&number).cloned().unwrap_or(None);
+                    if new != old {
+                        update.execute(params![new, now, number])?;
+                        changed += 1;
+                    }
+                }
+            }
+            tx.commit()?;
+            Ok(changed)
+        })
+    }
+
     pub fn get_pull(&self, number: u64) -> Result<Option<PullRequest>> {
         self.with_conn(|conn| get_pull(conn, number))
     }
@@ -130,7 +182,7 @@ impl Database {
     pub fn get_closed_pulls(&self, limit: usize) -> Result<Vec<PullRequest>> {
         self.with_conn(|conn| {
             let mut stmt = conn.prepare(
-                "SELECT number, title, body, state, labels, author, head_sha, base_sha, head_ref, base_ref, mergeable, ci_status, created_at, updated_at
+                "SELECT number, title, body, state, labels, author, head_sha, base_sha, head_ref, base_ref, mergeable, ci_status, created_at, updated_at, review_decision, review_decision_at
                  FROM pull_requests WHERE state = 'closed'
                  ORDER BY updated_at DESC LIMIT ?1",
             )?;
@@ -171,6 +223,9 @@ impl Database {
     }
 }
 
+/// NOTE: review_decision / review_decision_at are deliberately NOT part of
+/// this upsert - they are maintained by the dedicated review-decision sync
+/// pass (set_review_decisions), so a regular PR sync never wipes them.
 pub fn upsert_pull(conn: &Connection, pr: &PullRequest) -> Result<()> {
     let labels_json = serde_json::to_string(&pr.labels)?;
     conn.execute(
@@ -226,12 +281,14 @@ fn row_to_pull(row: &rusqlite::Row) -> rusqlite::Result<PullRequest> {
         ci_status: row.get(11)?,
         created_at: row.get(12)?,
         updated_at: row.get(13)?,
+        review_decision: row.get(14)?,
+        review_decision_at: row.get(15)?,
     })
 }
 
 pub fn get_pull(conn: &Connection, number: u64) -> Result<Option<PullRequest>> {
     let mut stmt = conn.prepare(
-        "SELECT number, title, body, state, labels, author, head_sha, base_sha, head_ref, base_ref, mergeable, ci_status, created_at, updated_at
+        "SELECT number, title, body, state, labels, author, head_sha, base_sha, head_ref, base_ref, mergeable, ci_status, created_at, updated_at, review_decision, review_decision_at
          FROM pull_requests WHERE number = ?1",
     )?;
 
@@ -246,7 +303,7 @@ pub fn get_pull(conn: &Connection, number: u64) -> Result<Option<PullRequest>> {
 
 pub fn get_open_pulls(conn: &Connection) -> Result<Vec<PullRequest>> {
     let mut stmt = conn.prepare(
-        "SELECT number, title, body, state, labels, author, head_sha, base_sha, head_ref, base_ref, mergeable, ci_status, created_at, updated_at
+        "SELECT number, title, body, state, labels, author, head_sha, base_sha, head_ref, base_ref, mergeable, ci_status, created_at, updated_at, review_decision, review_decision_at
          FROM pull_requests WHERE state = 'open' ORDER BY number DESC",
     )?;
 
@@ -258,7 +315,7 @@ pub fn get_open_pulls(conn: &Connection) -> Result<Vec<PullRequest>> {
 
 pub fn get_unanalyzed_pulls(conn: &Connection) -> Result<Vec<PullRequest>> {
     let mut stmt = conn.prepare(
-        "SELECT p.number, p.title, p.body, p.state, p.labels, p.author, p.head_sha, p.base_sha, p.head_ref, p.base_ref, p.mergeable, p.ci_status, p.created_at, p.updated_at
+        "SELECT p.number, p.title, p.body, p.state, p.labels, p.author, p.head_sha, p.base_sha, p.head_ref, p.base_ref, p.mergeable, p.ci_status, p.created_at, p.updated_at, p.review_decision, p.review_decision_at
          FROM pull_requests p
          LEFT JOIN pr_analyses a ON p.number = a.pr_number
          WHERE p.state = 'open' AND a.pr_number IS NULL
@@ -279,7 +336,7 @@ pub fn get_pulls_needing_analysis(conn: &Connection) -> Result<Vec<PullRequest>>
     use crate::db::schema::compute_pr_hash;
 
     let mut stmt = conn.prepare(
-        "SELECT p.number, p.title, p.body, p.state, p.labels, p.author, p.head_sha, p.base_sha, p.head_ref, p.base_ref, p.mergeable, p.ci_status, p.created_at, p.updated_at,
+        "SELECT p.number, p.title, p.body, p.state, p.labels, p.author, p.head_sha, p.base_sha, p.head_ref, p.base_ref, p.mergeable, p.ci_status, p.created_at, p.updated_at, p.review_decision, p.review_decision_at,
                 a.content_hash
          FROM pull_requests p
          LEFT JOIN pr_analyses a ON p.number = a.pr_number
@@ -289,7 +346,7 @@ pub fn get_pulls_needing_analysis(conn: &Connection) -> Result<Vec<PullRequest>>
 
     let rows = stmt.query_map([], |row| {
         let pr = row_to_pull(row)?;
-        let stored_hash: Option<String> = row.get(14)?;
+        let stored_hash: Option<String> = row.get(16)?;
         Ok((pr, stored_hash))
     })?;
 
@@ -331,7 +388,48 @@ mod tests {
             ci_status: Some("success".to_string()),
             created_at: "2026-01-01T00:00:00Z".to_string(),
             updated_at: "2026-01-01T00:00:00Z".to_string(),
+            review_decision: None,
+            review_decision_at: None,
         }
+    }
+
+    #[test]
+    fn review_decisions_set_change_and_clear() {
+        use std::collections::HashMap;
+        let db = Database::open_memory().unwrap();
+        db.upsert_pull(&test_pull(1, "a")).unwrap();
+        db.upsert_pull(&test_pull(2, "b")).unwrap();
+
+        // First sync: PR 1 approved, PR 2 absent from all buckets.
+        let mut d: HashMap<u64, Option<String>> = HashMap::new();
+        d.insert(1, Some("approved".to_string()));
+        assert_eq!(db.set_review_decisions(&d).unwrap(), 1);
+        let p1 = db.get_pull(1).unwrap().unwrap();
+        assert_eq!(p1.review_decision.as_deref(), Some("approved"));
+        let first_at = p1.review_decision_at.clone().expect("timestamp set");
+
+        // Same decision again: no change, timestamp preserved.
+        assert_eq!(db.set_review_decisions(&d).unwrap(), 0);
+        let p1b = db.get_pull(1).unwrap().unwrap();
+        assert_eq!(p1b.review_decision_at.as_deref(), Some(first_at.as_str()));
+
+        // Decision changes: value + timestamp move.
+        d.insert(1, Some("changes_requested".to_string()));
+        assert_eq!(db.set_review_decisions(&d).unwrap(), 1);
+        let p1c = db.get_pull(1).unwrap().unwrap();
+        assert_eq!(p1c.review_decision.as_deref(), Some("changes_requested"));
+
+        // PR dropped from the map entirely: decision cleared.
+        d.remove(&1);
+        assert_eq!(db.set_review_decisions(&d).unwrap(), 1);
+        assert!(db.get_pull(1).unwrap().unwrap().review_decision.is_none());
+
+        // A regular upsert must NOT wipe a stored decision.
+        d.insert(2, Some("approved".to_string()));
+        db.set_review_decisions(&d).unwrap();
+        db.upsert_pull(&test_pull(2, "b updated")).unwrap();
+        let p2 = db.get_pull(2).unwrap().unwrap();
+        assert_eq!(p2.review_decision.as_deref(), Some("approved"));
     }
 
     /// Insert a pr_analyses row with the given content hash (mirrors the

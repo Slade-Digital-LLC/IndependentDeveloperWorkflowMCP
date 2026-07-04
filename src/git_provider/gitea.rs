@@ -302,6 +302,9 @@ impl GitProvider for GiteaProvider {
                 ci_status: None,
                 created_at: pr["created_at"].as_str().unwrap_or("").to_string(),
                 updated_at: pr["updated_at"].as_str().unwrap_or("").to_string(),
+                // Populated by the dedicated review-decision sync pass, not here.
+                review_decision: None,
+                review_decision_at: None,
             })
             .collect())
     }

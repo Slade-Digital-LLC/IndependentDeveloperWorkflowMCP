@@ -317,6 +317,9 @@ impl GitProvider for GitLabProvider {
                 ci_status: mr["head_pipeline"]["status"].as_str().map(String::from),
                 created_at: mr["created_at"].as_str().unwrap_or("").to_string(),
                 updated_at: mr["updated_at"].as_str().unwrap_or("").to_string(),
+                // Populated by the dedicated review-decision sync pass, not here.
+                review_decision: None,
+                review_decision_at: None,
             })
             .collect())
     }

@@ -293,6 +293,9 @@ impl GitProvider for AzureDevOpsProvider {
                 ci_status: None,
                 created_at: pr["creationDate"].as_str().unwrap_or("").to_string(),
                 updated_at: pr["creationDate"].as_str().unwrap_or("").to_string(),
+                // Populated by the dedicated review-decision sync pass, not here.
+                review_decision: None,
+                review_decision_at: None,
             })
             .collect())
     }

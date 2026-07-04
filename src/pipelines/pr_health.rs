@@ -602,6 +602,8 @@ mod tests {
             ci_status: None,
             created_at: iso_days_ago(5),
             updated_at: iso_days_ago(0),
+            review_decision: None,
+            review_decision_at: None,
         }
     }
 
