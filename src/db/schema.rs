@@ -117,6 +117,18 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
          ON issues(state, reactions_total DESC);",
     )?;
 
+    // Migration: add review state to pull_requests (backs the "To Validate"
+    // review-radar view: ready-to-merge / awaiting-re-review buckets).
+    let has_review_decision: bool = conn
+        .prepare("SELECT review_decision FROM pull_requests LIMIT 0")
+        .is_ok();
+    if !has_review_decision {
+        conn.execute_batch(
+            "ALTER TABLE pull_requests ADD COLUMN review_decision TEXT;
+             ALTER TABLE pull_requests ADD COLUMN review_decision_at TEXT;",
+        )?;
+    }
+
     // Migration: add content_hash to triage_results and pr_analyses (for LLM call deduplication)
     let has_triage_hash: bool = conn
         .prepare("SELECT content_hash FROM triage_results LIMIT 0")

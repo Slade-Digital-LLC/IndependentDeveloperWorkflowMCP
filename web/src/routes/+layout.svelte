@@ -53,7 +53,7 @@
 	}
 
 	type IconName =
-		| 'dashboard' | 'summary' | 'issues' | 'prs' | 'triage' | 'queue'
+		| 'dashboard' | 'summary' | 'issues' | 'prs' | 'review' | 'triage' | 'queue'
 		| 'changelog' | 'revert' | 'backups' | 'activity' | 'actions' | 'logs'
 		| 'search' | 'settings' | 'insights' | 'issueInsights';
 
@@ -75,6 +75,7 @@
 		{ href: '/search', label: 'Search', icon: 'search', section: 'Work', feature: 'search' },
 		{ href: '/issues', label: 'Issues', icon: 'issues', section: 'Work' },
 		{ href: '/prs', label: 'Pull Requests', icon: 'prs', section: 'Work' },
+		{ href: '/review', label: 'To Validate', icon: 'review', section: 'Work' },
 		{ href: '/triage', label: 'Triage', icon: 'triage', section: 'Work' },
 		{ href: '/queue', label: 'Merge Queue', icon: 'queue', section: 'Work' },
 		{ href: '/actions', label: 'Actions', icon: 'actions', section: 'Work' },
@@ -289,6 +290,9 @@
 									<circle cx="18" cy="18" r="2" />
 									<path d="M6 8v8" />
 									<path d="M11 6h5a2 2 0 0 1 2 2v8" />
+								{:else if item.icon === 'review'}
+									<path d="M9 12l2 2 4-4" />
+									<circle cx="12" cy="12" r="9" />
 								{:else if item.icon === 'triage'}
 									<path d="M3 6h18" />
 									<path d="M6 12h12" />
