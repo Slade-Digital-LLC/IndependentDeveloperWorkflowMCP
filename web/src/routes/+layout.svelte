@@ -57,37 +57,48 @@
 		| 'changelog' | 'revert' | 'backups' | 'activity' | 'actions' | 'logs'
 		| 'search' | 'settings' | 'insights' | 'issueInsights';
 
+	type NavSection = 'Overview' | 'Work' | 'Insights' | 'System';
+
 	type NavItem = {
 		href: string;
 		label: string;
 		icon: IconName;
+		/** Sidebar section header this item is grouped under. */
+		section: NavSection;
 		/** When set, hide the item unless `license.features[id].enabled === true`. */
 		feature?: string;
 	};
 
 	const allNavItems: NavItem[] = [
-		{ href: '/', label: 'Dashboard', icon: 'dashboard' },
-		{ href: '/summary', label: 'Summary', icon: 'summary' },
-		{ href: '/search', label: 'Search', icon: 'search', feature: 'search' },
-		{ href: '/issues', label: 'Issues', icon: 'issues' },
-		{ href: '/prs', label: 'Pull Requests', icon: 'prs' },
-		{ href: '/pr-insights', label: 'PR Insights', icon: 'insights', feature: 'pr-insights' },
+		{ href: '/', label: 'Dashboard', icon: 'dashboard', section: 'Overview' },
+		{ href: '/summary', label: 'Summary', icon: 'summary', section: 'Overview' },
+		{ href: '/search', label: 'Search', icon: 'search', section: 'Work', feature: 'search' },
+		{ href: '/issues', label: 'Issues', icon: 'issues', section: 'Work' },
+		{ href: '/prs', label: 'Pull Requests', icon: 'prs', section: 'Work' },
+		{ href: '/triage', label: 'Triage', icon: 'triage', section: 'Work' },
+		{ href: '/queue', label: 'Merge Queue', icon: 'queue', section: 'Work' },
+		{ href: '/actions', label: 'Actions', icon: 'actions', section: 'Work' },
+		{
+			href: '/pr-insights',
+			label: 'PR Insights',
+			icon: 'insights',
+			section: 'Insights',
+			feature: 'pr-insights'
+		},
 		{
 			href: '/issue-insights',
 			label: 'Issue Insights',
 			icon: 'issueInsights',
+			section: 'Insights',
 			feature: 'issue-insights'
 		},
-		{ href: '/triage', label: 'Triage', icon: 'triage' },
-		{ href: '/queue', label: 'Merge Queue', icon: 'queue' },
-		{ href: '/changelog', label: 'Changelog', icon: 'changelog' },
-		{ href: '/revert', label: 'Revert', icon: 'revert' },
-		{ href: '/backups', label: 'Backups', icon: 'backups' },
-		{ href: '/activity', label: 'Activity', icon: 'activity' },
-		{ href: '/actions', label: 'Actions', icon: 'actions' },
-		{ href: '/logs', label: 'Logs', icon: 'logs' },
-		{ href: '/usage', label: 'Usage', icon: 'activity', feature: 'usage-dashboard' },
-		{ href: '/settings', label: 'Settings', icon: 'settings' }
+		{ href: '/usage', label: 'Usage', icon: 'activity', section: 'Insights', feature: 'usage-dashboard' },
+		{ href: '/changelog', label: 'Changelog', icon: 'changelog', section: 'Insights' },
+		{ href: '/activity', label: 'Activity', icon: 'activity', section: 'Insights' },
+		{ href: '/logs', label: 'Logs', icon: 'logs', section: 'System' },
+		{ href: '/revert', label: 'Revert', icon: 'revert', section: 'System' },
+		{ href: '/backups', label: 'Backups', icon: 'backups', section: 'System' },
+		{ href: '/settings', label: 'Settings', icon: 'settings', section: 'System' }
 	];
 	function isFeatureLicensed(featureId: string | undefined): boolean {
 		if (!featureId) return true;
@@ -98,6 +109,12 @@
 		allNavItems
 			.filter((i) => canAccessRoute(me?.role, i.href))
 			.filter((i) => isFeatureLicensed(i.feature))
+	);
+	const sectionOrder: NavSection[] = ['Overview', 'Work', 'Insights', 'System'];
+	let navSections = $derived(
+		sectionOrder
+			.map((name) => ({ name, items: navItems.filter((i) => i.section === name) }))
+			.filter((s) => s.items.length > 0)
 	);
 
 	function toggleCollapse() {
@@ -232,8 +249,16 @@
 		{/if}
 
 		<div class="flex-1 py-1">
+			{#each navSections as section (section.name)}
+				{#if !collapsed}
+					<div class="px-3 pt-3 pb-1 text-[0.625rem] font-semibold uppercase tracking-wider text-gray-600 select-none">
+						{section.name}
+					</div>
+				{:else}
+					<div class="mx-3 my-2 border-t border-gray-700" aria-hidden="true"></div>
+				{/if}
 			<SidebarGroup class="space-y-0">
-				{#each navItems as item}
+				{#each section.items as item}
 					<SidebarItem
 						href={item.href}
 						label={item.label}
@@ -311,6 +336,7 @@
 					</SidebarItem>
 				{/each}
 			</SidebarGroup>
+			{/each}
 		</div>
 
 		{#if me}
