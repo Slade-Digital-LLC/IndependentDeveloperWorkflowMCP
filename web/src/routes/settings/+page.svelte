@@ -22,7 +22,8 @@
 		Tooltip,
 		Toggle,
 	} from 'flowbite-svelte';
-	import { colorConfig, type ColorConfig } from '$lib/colors';
+	import { colorConfig, colorPresets, type ColorConfig } from '$lib/colors';
+	import { theme } from '$lib/stores';
 	import { t, tr } from '$lib/i18n';
 
 	let translate = $state<(k: string) => string>((k) => k);
@@ -346,6 +347,15 @@
 
 	function saveColors() { colorConfig.save(colors); }
 	function resetColors() { colorConfig.reset(); colors = { ...colorConfig.defaults }; }
+	function applyPreset(id: string) {
+		const preset = colorPresets[id];
+		if (preset) { colorConfig.save({ ...preset }); colors = { ...preset }; }
+	}
+	const presetLabels: Record<string, string> = {
+		default: 'settings.appearance.presetDefault',
+		highContrast: 'settings.appearance.presetHighContrast',
+		muted: 'settings.appearance.presetMuted'
+	};
 
 	async function refreshRepos() {
 		try { reposList = await fetchRepos(); } catch { /* ignore */ }
@@ -722,6 +732,40 @@
 
 	<!-- ========================== APPEARANCE ========================== -->
 	<TabItem title={$t('settings.tabs.appearance')}>
+		<Card class="bg-gray-800 border-gray-700 max-w-none mb-4">
+			<div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+				<div>
+					<Heading tag="h3" class="text-base mb-3">{$t('settings.appearance.theme')}</Heading>
+					<div class="flex gap-2">
+						<Button size="xs" color={$theme === 'dark' ? 'blue' : 'alternative'} onclick={() => theme.set('dark')}>
+							{$t('settings.appearance.themeDark')}
+						</Button>
+						<Button size="xs" color={$theme === 'light' ? 'blue' : 'alternative'} onclick={() => theme.set('light')}>
+							{$t('settings.appearance.themeLight')}
+						</Button>
+					</div>
+				</div>
+				<div>
+					<Heading tag="h3" class="text-base mb-3">{$t('settings.appearance.presets')}</Heading>
+					<div class="flex gap-2 flex-wrap">
+						{#each Object.keys(colorPresets) as id}
+							<button
+								type="button"
+								class="flex items-center gap-2 px-3 py-1.5 rounded border border-gray-600 bg-gray-900 text-xs text-gray-300 hover:border-gray-400"
+								onclick={() => applyPreset(id)}
+							>
+								{$t(presetLabels[id])}
+								<span class="flex gap-0.5">
+									{#each ['critical', 'high', 'medium', 'feature'] as k}
+										<span class="w-2 h-2 rounded-full inline-block" style="background: {colorPresets[id][k]}"></span>
+									{/each}
+								</span>
+							</button>
+						{/each}
+					</div>
+				</div>
+			</div>
+		</Card>
 		<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 			<Card class="bg-gray-800 border-gray-700 max-w-none">
 				<Heading tag="h3" class="text-base mb-4">{$t('settings.appearance.colorScheme')}</Heading>
