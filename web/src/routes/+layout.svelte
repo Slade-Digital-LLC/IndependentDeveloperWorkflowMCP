@@ -118,6 +118,27 @@
 			.filter((s) => s.items.length > 0)
 	);
 
+	// Per-section fold state (persisted). System starts folded to keep the
+	// menu focused on daily work; a section containing the ACTIVE route is
+	// always shown expanded so the current page never disappears from the
+	// sidebar (it re-folds when you navigate away).
+	const NAV_FOLD_KEY = 'wshm-nav-folded-sections';
+	let foldedSections: Record<string, boolean> = $state({ System: true });
+	function loadFoldedSections() {
+		try {
+			const raw = localStorage.getItem(NAV_FOLD_KEY);
+			if (raw) foldedSections = { System: true, ...JSON.parse(raw) };
+		} catch { /* ignore */ }
+	}
+	function toggleSection(name: string) {
+		foldedSections = { ...foldedSections, [name]: !foldedSections[name] };
+		try { localStorage.setItem(NAV_FOLD_KEY, JSON.stringify(foldedSections)); } catch { /* ignore */ }
+	}
+	function sectionOpen(name: string, items: NavItem[]): boolean {
+		if (!foldedSections[name]) return true;
+		return items.some((i) => i.href === activeUrl);
+	}
+
 	function toggleCollapse() {
 		collapsed = !collapsed;
 		try { localStorage.setItem('wshm-sidebar-collapsed', String(collapsed)); } catch { /* ignore */ }
@@ -140,6 +161,7 @@
 			const saved = localStorage.getItem('wshm-sidebar-collapsed');
 			if (saved === 'true') collapsed = true;
 		} catch { /* ignore */ }
+		loadFoldedSections();
 		theme.update((t) => t);
 		try {
 			const status = await fetchStatus();
@@ -251,13 +273,23 @@
 
 		<div class="flex-1 py-1">
 			{#each navSections as section (section.name)}
+				{@const open = sectionOpen(section.name, section.items)}
 				{#if !collapsed}
-					<div class="px-3 pt-3 pb-1 text-[0.625rem] font-semibold uppercase tracking-wider text-gray-600 select-none">
+					<button
+						type="button"
+						class="w-full flex items-center justify-between px-3 pt-3 pb-1 text-[0.625rem] font-semibold uppercase tracking-wider text-gray-600 hover:text-gray-400 select-none"
+						aria-expanded={open}
+						onclick={() => toggleSection(section.name)}
+					>
 						{section.name}
-					</div>
+						<svg class="h-2.5 w-2.5 transition-transform {open ? 'rotate-90' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+							<path d="m9 6 6 6-6 6" />
+						</svg>
+					</button>
 				{:else}
 					<div class="mx-3 my-2 border-t border-gray-700" aria-hidden="true"></div>
 				{/if}
+			{#if open || collapsed}
 			<SidebarGroup class="space-y-0">
 				{#each section.items as item}
 					<SidebarItem
@@ -340,6 +372,7 @@
 					</SidebarItem>
 				{/each}
 			</SidebarGroup>
+			{/if}
 			{/each}
 		</div>
 
