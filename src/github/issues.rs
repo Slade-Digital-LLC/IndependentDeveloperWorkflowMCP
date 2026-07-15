@@ -106,38 +106,22 @@ impl Client {
         since: Option<&str>,
     ) -> Result<Vec<Issue>> {
         let mut all_issues = Vec::with_capacity(128);
+        let mut url = format!(
+            "https://api.github.com/repos/{}/{}/issues?state={state}&per_page={pp}",
+            self.owner,
+            self.repo,
+            pp = super::GITHUB_PER_PAGE
+        );
+        if let Some(since) = since {
+            url.push_str(&format!("&since={since}"));
+        }
         let mut page = 1u32;
 
         loop {
-            let mut url =
-                format!(
-                "https://api.github.com/repos/{}/{}/issues?state={state}&per_page={pp}&page={page}",
-                self.owner, self.repo, pp = super::GITHUB_PER_PAGE
-            );
-            if let Some(since) = since {
-                url.push_str(&format!("&since={since}"));
-            }
-
-            let body = crate::retry::with_retry("github: fetch issues", || async {
-                let response = self
-                    .octocrab
-                    ._get(&url)
-                    .await
-                    .context("Failed to fetch issues")?;
-                self.octocrab
-                    .body_to_string(response)
-                    .await
-                    .context("Failed to read issues response body")
-            })
-            .await?;
-
+            let (body, next) = self.get_page(&url, "github: fetch issues").await?;
             let items = super::parse_json_array(&body, "issues")?;
 
             debug!("Fetched page {page} with {} items", items.len());
-
-            if items.is_empty() {
-                break;
-            }
 
             for item in &items {
                 // Skip PRs (the issues endpoint includes them)
@@ -146,8 +130,9 @@ impl Client {
                 }
             }
 
-            if items.len() < 100 || page >= 100 {
-                break; // Last page or safety cap
+            match next {
+                Some(next) if page < super::GITHUB_MAX_PAGES => url = next,
+                _ => break, // Last page or safety cap
             }
             page += 1;
         }
@@ -223,34 +208,18 @@ impl Client {
     /// Returns `Some(comment_id)` if found, `None` otherwise.
     /// Searches for both the custom marker and the legacy `<!-- wshm -->` marker.
     pub async fn find_wshm_comment(&self, number: u64, marker: &str) -> Result<Option<u64>> {
+        let mut url = format!(
+            "https://api.github.com/repos/{}/{}/issues/{number}/comments?per_page={pp}",
+            self.owner,
+            self.repo,
+            pp = super::GITHUB_PER_PAGE
+        );
         let mut page = 1u32;
 
         loop {
-            let url = format!(
-                "https://api.github.com/repos/{}/{}/issues/{number}/comments?per_page={pp}&page={page}",
-                self.owner, self.repo, pp = super::GITHUB_PER_PAGE
-            );
-
-            let body = crate::retry::with_retry("github: fetch comments", || async {
-                let response = self
-                    .octocrab
-                    ._get(&url)
-                    .await
-                    .with_context(|| format!("Failed to fetch comments for issue #{number}"))?;
-                self.octocrab
-                    .body_to_string(response)
-                    .await
-                    .with_context(|| {
-                        format!("Failed to read comments response for issue #{number}")
-                    })
-            })
-            .await?;
-
+            let label = format!("github: fetch comments for issue #{number}");
+            let (body, next) = self.get_page(&url, &label).await?;
             let comments = super::parse_json_array(&body, "comments")?;
-
-            if comments.is_empty() {
-                break;
-            }
 
             for comment in &comments {
                 let comment_body = comment.get("body").and_then(|v| v.as_str()).unwrap_or("");
@@ -262,8 +231,9 @@ impl Client {
                 }
             }
 
-            if comments.len() < 100 {
-                break;
+            match next {
+                Some(next) if page < super::GITHUB_MAX_PAGES => url = next,
+                _ => break,
             }
             page += 1;
         }
