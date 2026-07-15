@@ -57,7 +57,11 @@ impl Client {
     /// page). Callers paginate by following that URL — never by building
     /// `page=N` URLs, which GitHub rejects on large datasets in favor of
     /// cursor-based pagination (see [`super::parse_link_next`]).
-    pub(crate) async fn get_page(&self, url: &str, label: &str) -> Result<(String, Option<String>)> {
+    pub(crate) async fn get_page(
+        &self,
+        url: &str,
+        label: &str,
+    ) -> Result<(String, Option<String>)> {
         crate::retry::with_retry(label, || async {
             let response = self
                 .octocrab
