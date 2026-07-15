@@ -52,6 +52,33 @@ impl Client {
         })
     }
 
+    /// GET one page of a GitHub list endpoint, returning the body and the
+    /// `rel="next"` URL from the `Link` response header (None on the last
+    /// page). Callers paginate by following that URL — never by building
+    /// `page=N` URLs, which GitHub rejects on large datasets in favor of
+    /// cursor-based pagination (see [`super::parse_link_next`]).
+    pub(crate) async fn get_page(&self, url: &str, label: &str) -> Result<(String, Option<String>)> {
+        crate::retry::with_retry(label, || async {
+            let response = self
+                .octocrab
+                ._get(url)
+                .await
+                .with_context(|| format!("Failed to fetch {label}"))?;
+            let next = response
+                .headers()
+                .get("link")
+                .and_then(|v| v.to_str().ok())
+                .and_then(super::parse_link_next);
+            let body = self
+                .octocrab
+                .body_to_string(response)
+                .await
+                .with_context(|| format!("Failed to read {label} response body"))?;
+            Ok((body, next))
+        })
+        .await
+    }
+
     /// Returns Err with a descriptive message when the client is unauthenticated.
     /// Pipelines that mutate the repo (label, comment, create PR) call this
     /// at the top of their function so the daemon logs why an action was

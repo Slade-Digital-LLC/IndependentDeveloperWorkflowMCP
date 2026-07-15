@@ -60,32 +60,15 @@ impl Client {
     /// Fetch merged pull requests, optionally filtering to those merged since a given ISO date.
     pub async fn fetch_merged_pulls(&self, since: Option<&str>) -> Result<Vec<MergedPullRequest>> {
         let mut all = Vec::with_capacity(128);
+        let mut url = format!(
+            "https://api.github.com/repos/{}/{}/pulls?state=closed&sort=updated&direction=desc&per_page={pp}",
+            self.owner, self.repo, pp = super::GITHUB_PER_PAGE
+        );
         let mut page = 1u32;
 
         loop {
-            let url = format!(
-                "https://api.github.com/repos/{}/{}/pulls?state=closed&sort=updated&direction=desc&per_page={pp}&page={page}",
-                self.owner, self.repo, pp = super::GITHUB_PER_PAGE
-            );
-
-            let body = crate::retry::with_retry("github: list closed PRs", || async {
-                let response = self
-                    .octocrab
-                    ._get(&url)
-                    .await
-                    .context("Failed to fetch closed pull requests")?;
-                self.octocrab
-                    .body_to_string(response)
-                    .await
-                    .context("Failed to read closed pulls response body")
-            })
-            .await?;
-
+            let (body, next) = self.get_page(&url, "github: list closed PRs").await?;
             let items = super::parse_json_array(&body, "closed pulls")?;
-
-            if items.is_empty() {
-                break;
-            }
 
             let mut stop = false;
             for pr in &items {
@@ -114,8 +97,12 @@ impl Client {
                 });
             }
 
-            if stop || items.len() < 100 {
+            if stop {
                 break;
+            }
+            match next {
+                Some(next) if page < super::GITHUB_MAX_PAGES => url = next,
+                _ => break,
             }
             page += 1;
         }
@@ -202,33 +189,16 @@ impl Client {
         since: Option<&str>,
     ) -> Result<Vec<PullRequest>> {
         let mut all_pulls = Vec::with_capacity(64);
+        // sort=updated direction=desc → newest first → we can break early
+        let mut url = format!(
+            "https://api.github.com/repos/{}/{}/pulls?state={state}&sort=updated&direction=desc&per_page={pp}",
+            self.owner, self.repo, pp = super::GITHUB_PER_PAGE
+        );
         let mut page = 1u32;
 
         loop {
-            // sort=updated direction=desc → newest first → we can break early
-            let url = format!(
-                "https://api.github.com/repos/{}/{}/pulls?state={state}&sort=updated&direction=desc&per_page={pp}&page={page}",
-                self.owner, self.repo, pp = super::GITHUB_PER_PAGE
-            );
-
-            let body = crate::retry::with_retry("github: list PRs", || async {
-                let response = self
-                    .octocrab
-                    ._get(&url)
-                    .await
-                    .context("Failed to fetch pull requests")?;
-                self.octocrab
-                    .body_to_string(response)
-                    .await
-                    .context("Failed to read pulls response body")
-            })
-            .await?;
-
+            let (body, next) = self.get_page(&url, "github: list PRs").await?;
             let items = super::parse_json_array(&body, "pulls")?;
-
-            if items.is_empty() {
-                break;
-            }
 
             let mut should_stop = false;
 
@@ -245,8 +215,12 @@ impl Client {
                 all_pulls.push(parse_pull(pr));
             }
 
-            if should_stop || items.len() < 100 || page >= 100 {
-                break; // Hit a PR older than since, last page, or safety cap
+            if should_stop {
+                break; // Hit a PR older than since
+            }
+            match next {
+                Some(next) if page < super::GITHUB_MAX_PAGES => url = next,
+                _ => break, // Last page or safety cap
             }
             page += 1;
         }
