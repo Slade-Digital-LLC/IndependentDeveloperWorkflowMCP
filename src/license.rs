@@ -352,6 +352,15 @@ fn cache_token(token: &str) -> Result<()> {
 }
 
 pub fn generate_machine_id() -> String {
+    // Explicit override for environments where the hostname is unstable
+    // (K8s pod names change on every rollout — each would otherwise burn
+    // a fresh activation slot on the license server).
+    if let Ok(id) = std::env::var("WSHM_MACHINE_ID") {
+        let id = id.trim().to_string();
+        if !id.is_empty() {
+            return id;
+        }
+    }
     use sha2::{Digest, Sha256};
     let hostname = hostname::get()
         .map(|h| h.to_string_lossy().to_string())
