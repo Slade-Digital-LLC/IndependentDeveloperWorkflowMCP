@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { onMount, onDestroy, tick } from 'svelte';
 	import { fetchLogs, type LogEntry } from '$lib/api';
-	import { Heading, Button, Select, Toggle } from 'flowbite-svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { Label } from '$lib/components/ui/label';
+	import { Switch } from '$lib/components/ui/switch';
+	import * as Select from '$lib/components/ui/select';
 
 	const POLL_MS = 2000;
 	const TAIL_INITIAL = 100;
@@ -81,12 +84,12 @@
 
 	function levelClass(lvl: string): string {
 		switch (lvl) {
-			case 'ERROR': return 'text-red-400';
-			case 'WARN':  return 'text-yellow-400';
-			case 'INFO':  return 'text-blue-300';
-			case 'DEBUG': return 'text-gray-400';
-			case 'TRACE': return 'text-gray-500';
-			default:      return 'text-gray-200';
+			case 'ERROR': return 'text-red-600 dark:text-red-400';
+			case 'WARN':  return 'text-yellow-600 dark:text-yellow-400';
+			case 'INFO':  return 'text-primary';
+			case 'DEBUG': return 'text-muted-foreground';
+			case 'TRACE': return 'text-muted-foreground';
+			default:      return 'text-foreground';
 		}
 	}
 
@@ -142,53 +145,66 @@
 </svelte:head>
 
 <div class="mb-4">
-	<Heading tag="h2" class="text-xl mb-1">Daemon logs</Heading>
-	<p class="text-sm text-gray-500">Tail of the in-memory log buffer (resets on daemon restart). Polls every {POLL_MS / 1000}s when this tab is visible.</p>
+	<h2 class="text-xl font-bold tracking-tight mb-1">Daemon logs</h2>
+	<p class="text-sm text-muted-foreground">Tail of the in-memory log buffer (resets on daemon restart). Polls every {POLL_MS / 1000}s when this tab is visible.</p>
 </div>
 
 <div class="flex flex-wrap items-center gap-3 mb-3">
 	<div class="flex items-center gap-2">
-		<span class="text-xs text-gray-400">Min level</span>
-		<Select bind:value={level} items={LEVELS} class="w-28" size="sm" />
+		<span class="text-xs text-muted-foreground">Min level</span>
+		<Select.Root type="single" bind:value={level}>
+			<Select.Trigger class="w-28" size="sm">{LEVELS.find((l) => l.value === level)?.name ?? 'Level'}</Select.Trigger>
+			<Select.Content>
+				{#each LEVELS as l}
+					<Select.Item value={l.value} label={l.name} />
+				{/each}
+			</Select.Content>
+		</Select.Root>
 	</div>
 
-	<Toggle bind:checked={paused}>Pause</Toggle>
-	<Toggle bind:checked={autoscroll}>Autoscroll</Toggle>
+	<div class="flex items-center gap-2">
+		<Switch id="logs-pause" bind:checked={paused} />
+		<Label for="logs-pause">Pause</Label>
+	</div>
+	<div class="flex items-center gap-2">
+		<Switch id="logs-autoscroll" bind:checked={autoscroll} />
+		<Label for="logs-autoscroll">Autoscroll</Label>
+	</div>
 
 	<div class="ml-auto flex gap-2">
-		<Button color="alternative" size="xs" disabled={loading} onclick={() => fetchOnce({ tail: TAIL_INITIAL, reset: true })}>
+		<Button variant="outline" size="xs" disabled={loading} onclick={() => fetchOnce({ tail: TAIL_INITIAL, reset: true })}>
 			{loading ? 'Loading…' : 'Reload'}
 		</Button>
-		<Button color="alternative" size="xs" onclick={copyAll}>Copy all</Button>
-		<Button color="alternative" size="xs" onclick={clearLogs}>Clear view</Button>
+		<Button variant="outline" size="xs" onclick={copyAll}>Copy all</Button>
+		<Button variant="outline" size="xs" onclick={clearLogs}>Clear view</Button>
 	</div>
 </div>
 
 {#if error}
-	<div class="rounded border border-red-700 bg-red-900/40 px-3 py-2 text-xs text-red-300 mb-3">
+	<div class="rounded border border-red-500/40 bg-red-500/15 px-3 py-2 text-xs text-red-700 dark:text-red-300 mb-3">
 		{error}
 	</div>
 {/if}
 
 <div
 	bind:this={logContainer}
-	class="rounded border border-gray-700 bg-gray-950 p-3 font-mono text-xs leading-5 overflow-auto"
+	class="rounded border bg-muted/40 p-3 font-mono text-xs leading-5 overflow-auto"
 	style="height: calc(100vh - 200px); min-height: 280px; max-height: 75vh;"
 >
 	{#if entries.length === 0}
-		<div class="text-gray-500">{loading ? 'Loading…' : 'No log entries yet.'}</div>
+		<div class="text-muted-foreground">{loading ? 'Loading…' : 'No log entries yet.'}</div>
 	{:else}
 		{#each entries as entry (entry.id)}
-			<div class="flex gap-2 hover:bg-gray-900/50 px-1">
-				<span class="text-gray-500 shrink-0">{formatTime(entry.at)}</span>
+			<div class="flex gap-2 hover:bg-muted/50 px-1">
+				<span class="text-muted-foreground shrink-0">{formatTime(entry.at)}</span>
 				<span class="font-semibold w-12 shrink-0 {levelClass(entry.level)}">{entry.level}</span>
-				<span class="text-gray-400 shrink-0 max-w-[260px] truncate" title={entry.target}>{entry.target}</span>
-				<span class="text-gray-200 break-all">{entry.message}</span>
+				<span class="text-muted-foreground shrink-0 max-w-[260px] truncate" title={entry.target}>{entry.target}</span>
+				<span class="text-foreground break-all">{entry.message}</span>
 			</div>
 		{/each}
 	{/if}
 </div>
 
-<div class="mt-2 text-xs text-gray-500">
+<div class="mt-2 text-xs text-muted-foreground">
 	{entries.length} entries · last id {lastId ?? '—'} · {paused ? 'paused' : 'live'}
 </div>

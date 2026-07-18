@@ -2,7 +2,12 @@
 	import { onMount } from 'svelte';
 	import { selectedRepo } from '$lib/stores';
 	import { fetchStatus, fetchIssues, fetchPulls, fetchAuthStatus, type Status, type Issue, type PullRequest, type AuthStatus } from '$lib/api';
-	import { Alert, Card, Table, TableHead, TableHeadCell, TableBody, TableBodyRow, TableBodyCell, Badge, Button } from 'flowbite-svelte';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
+	import * as Alert from '$lib/components/ui/alert';
+	import * as Card from '$lib/components/ui/card';
+	import * as Table from '$lib/components/ui/table';
+	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
 
 	let status: Status | null = $state(null);
 	let issues: Issue[] = $state([]);
@@ -140,11 +145,11 @@
 		return unsub;
 	});
 
-	function riskColor(risk: string | null): 'green' | 'yellow' | 'red' | 'gray' {
-		if (risk === 'low') return 'green';
-		if (risk === 'medium') return 'yellow';
-		if (risk === 'high') return 'red';
-		return 'gray';
+	function riskBadgeClass(risk: string | null): string {
+		if (risk === 'low') return 'border-green-500/30 bg-green-500/15 text-green-600 dark:text-green-400';
+		if (risk === 'medium') return 'border-yellow-500/30 bg-yellow-500/15 text-yellow-600 dark:text-yellow-400';
+		if (risk === 'high') return 'border-red-500/30 bg-red-500/15 text-red-600 dark:text-red-400';
+		return '';
 	}
 
 	const views: { id: View; label: string }[] = [
@@ -160,16 +165,16 @@
 
 <div class="mb-6 flex items-start justify-between gap-4 flex-wrap">
 	<div>
-		<h2 class="text-xl font-semibold text-gray-100 mb-1">Actions</h2>
-		<p class="text-sm text-gray-500">Priority items requiring attention</p>
+		<h2 class="text-xl font-semibold text-foreground mb-1">Actions</h2>
+		<p class="text-sm text-muted-foreground">Priority items requiring attention</p>
 	</div>
-	<div class="inline-flex rounded-md border border-gray-700 overflow-hidden text-xs" role="group" aria-label="Filter tasks">
+	<div class="inline-flex rounded-md border overflow-hidden text-xs" role="group" aria-label="Filter tasks">
 		{#each views as v}
 			<button
 				type="button"
 				class="px-3 py-1.5 select-none {view === v.id
-					? 'bg-blue-600 text-white'
-					: 'bg-gray-800 text-gray-400 hover:text-gray-200 hover:bg-gray-700'}"
+					? 'bg-primary text-primary-foreground'
+					: 'bg-card text-muted-foreground hover:text-foreground hover:bg-muted'}"
 				aria-pressed={view === v.id}
 				onclick={() => (view = v.id)}
 			>
@@ -180,177 +185,213 @@
 </div>
 
 {#if error}
-	<Card class="border-red-500 bg-gray-800 max-w-none">
-		<p class="text-red-400">{error}</p>
-	</Card>
+	<Card.Root class="border-red-500">
+		<Card.Content>
+			<p class="text-red-600 dark:text-red-400">{error}</p>
+		</Card.Content>
+	</Card.Root>
 {:else}
 	{#if aiMissing || ghMissing}
-		<Alert color="yellow" class="mb-4 !border !bg-yellow-50 !text-yellow-900 !border-yellow-300 dark:!bg-yellow-900/20 dark:!text-yellow-100 dark:!border-yellow-700/50">
-			<div class="font-semibold mb-1">⚠️ Automatic actions disabled</div>
-			<ul class="text-sm list-disc ml-5 space-y-0.5">
-				{#if ghMissing}
-					<li>No GitHub token configured — wshm cannot read issues/PRs from private repos or post comments. <a href="/settings" class="underline hover:text-yellow-200">Settings → Git providers</a>.</li>
-				{/if}
-				{#if aiMissing}
-					<li>No AI provider configured — issues won't be triaged (no <code>priority</code>) and PRs won't be analyzed (no <code>risk</code>), so the lists below stay empty. <a href="/settings" class="underline hover:text-yellow-200">Settings → AI providers</a>.</li>
-				{/if}
-			</ul>
-		</Alert>
+		<Alert.Root class="mb-4 border-yellow-500/40 bg-yellow-500/10 text-yellow-700 dark:text-yellow-200 [&>svg]:text-yellow-500">
+			<TriangleAlertIcon />
+			<Alert.Title>Automatic actions disabled</Alert.Title>
+			<Alert.Description class="text-yellow-700 dark:text-yellow-200">
+				<ul class="text-sm list-disc ml-5 space-y-0.5">
+					{#if ghMissing}
+						<li>No GitHub token configured — wshm cannot read issues/PRs from private repos or post comments. <a href="/settings" class="underline hover:text-yellow-800 dark:hover:text-yellow-100">Settings → Git providers</a>.</li>
+					{/if}
+					{#if aiMissing}
+						<li>No AI provider configured — issues won't be triaged (no <code>priority</code>) and PRs won't be analyzed (no <code>risk</code>), so the lists below stay empty. <a href="/settings" class="underline hover:text-yellow-800 dark:hover:text-yellow-100">Settings → AI providers</a>.</li>
+					{/if}
+				</ul>
+			</Alert.Description>
+		</Alert.Root>
 	{/if}
 	<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
-		<Card class="bg-gray-800 border-gray-700 text-center !p-4 max-w-none">
-			<div class="text-[0.6875rem] uppercase tracking-wider text-gray-500 mb-1">Open Issues</div>
-			<div class="text-2xl font-bold text-gray-100 mono">{status?.open_issues ?? '--'}</div>
-		</Card>
-		<Card class="bg-gray-800 border-gray-700 text-center !p-4 max-w-none">
-			<div class="text-[0.6875rem] uppercase tracking-wider text-gray-500 mb-1">Untriaged</div>
-			<div class="text-2xl font-bold text-gray-100 mono">{status?.untriaged ?? '--'}</div>
-		</Card>
-		<Card class="bg-gray-800 border-gray-700 text-center !p-4 max-w-none">
-			<div class="text-[0.6875rem] uppercase tracking-wider text-gray-500 mb-1">Open PRs</div>
-			<div class="text-2xl font-bold text-gray-100 mono">{status?.open_prs ?? '--'}</div>
-		</Card>
-		<Card class="bg-gray-800 border-gray-700 text-center !p-4 max-w-none">
-			<div class="text-[0.6875rem] uppercase tracking-wider text-gray-500 mb-1">Unanalyzed</div>
-			<div class="text-2xl font-bold text-gray-100 mono">{status?.unanalyzed ?? '--'}</div>
-		</Card>
-		<Card class="bg-gray-800 border-gray-700 text-center !p-4 max-w-none">
-			<div class="text-[0.6875rem] uppercase tracking-wider text-gray-500 mb-1">Conflicts</div>
-			<div class="text-2xl font-bold text-gray-100 mono">{status?.conflicts ?? '--'}</div>
-		</Card>
+		<Card.Root class="py-4 text-center">
+			<Card.Content class="px-4">
+				<div class="text-[0.6875rem] uppercase tracking-wider text-muted-foreground mb-1">Open Issues</div>
+				<div class="text-2xl font-bold text-foreground mono">{status?.open_issues ?? '--'}</div>
+			</Card.Content>
+		</Card.Root>
+		<Card.Root class="py-4 text-center">
+			<Card.Content class="px-4">
+				<div class="text-[0.6875rem] uppercase tracking-wider text-muted-foreground mb-1">Untriaged</div>
+				<div class="text-2xl font-bold text-foreground mono">{status?.untriaged ?? '--'}</div>
+			</Card.Content>
+		</Card.Root>
+		<Card.Root class="py-4 text-center">
+			<Card.Content class="px-4">
+				<div class="text-[0.6875rem] uppercase tracking-wider text-muted-foreground mb-1">Open PRs</div>
+				<div class="text-2xl font-bold text-foreground mono">{status?.open_prs ?? '--'}</div>
+			</Card.Content>
+		</Card.Root>
+		<Card.Root class="py-4 text-center">
+			<Card.Content class="px-4">
+				<div class="text-[0.6875rem] uppercase tracking-wider text-muted-foreground mb-1">Unanalyzed</div>
+				<div class="text-2xl font-bold text-foreground mono">{status?.unanalyzed ?? '--'}</div>
+			</Card.Content>
+		</Card.Root>
+		<Card.Root class="py-4 text-center">
+			<Card.Content class="px-4">
+				<div class="text-[0.6875rem] uppercase tracking-wider text-muted-foreground mb-1">Conflicts</div>
+				<div class="text-2xl font-bold text-foreground mono">{status?.conflicts ?? '--'}</div>
+			</Card.Content>
+		</Card.Root>
 	</div>
 
 	<div class="mt-6">
-		<h2 class="text-xl font-semibold text-gray-100 mb-1">Action Required</h2>
-		<p class="text-sm text-gray-500 mb-3">High/critical priority issues, oldest first</p>
+		<h2 class="text-xl font-semibold text-foreground mb-1">Action Required</h2>
+		<p class="text-sm text-muted-foreground mb-3">High/critical priority issues, oldest first</p>
 		{#if actionRequiredView.length === 0}
-			<Card class="bg-gray-800 border-gray-700 max-w-none">
-				{#if view === 'done'}
-					<p class="text-gray-600 text-center py-4">Nothing marked done here yet.</p>
-				{:else if aiMissing}
-					<p class="text-gray-500 text-center py-4 text-sm">
-						Issues are not triaged because no AI provider is configured.<br />
-						Set one in <a href="/settings" class="text-blue-400 hover:underline">Settings → AI providers</a> to populate this list.
-					</p>
-				{:else}
-					<p class="text-gray-600 text-center py-4">No high-priority issues requiring action.</p>
-				{/if}
-			</Card>
+			<Card.Root>
+				<Card.Content>
+					{#if view === 'done'}
+						<p class="text-muted-foreground text-center py-4">Nothing marked done here yet.</p>
+					{:else if aiMissing}
+						<p class="text-muted-foreground text-center py-4 text-sm">
+							Issues are not triaged because no AI provider is configured.<br />
+							Set one in <a href="/settings" class="text-primary hover:underline">Settings → AI providers</a> to populate this list.
+						</p>
+					{:else}
+						<p class="text-muted-foreground text-center py-4">No high-priority issues requiring action.</p>
+					{/if}
+				</Card.Content>
+			</Card.Root>
 		{:else}
-			<div class="w-full overflow-x-auto">
-				<Table striped hoverable class="w-full">
-					<TableHead class="text-xs uppercase text-gray-400">
-						<TableHeadCell class="px-2 py-1.5 w-[60px]">#</TableHeadCell>
-						<TableHeadCell class="px-2 py-1.5 w-[70px]">Priority</TableHeadCell>
-						<TableHeadCell class="px-2 py-1.5 w-[50px]">Age</TableHeadCell>
-						<TableHeadCell class="px-2 py-1.5">Title</TableHeadCell>
-						<TableHeadCell class="px-2 py-1.5 w-[80px] text-right">Done</TableHeadCell>
-					</TableHead>
-					<TableBody>
+			<div class="w-full overflow-x-auto rounded-lg border">
+				<Table.Root class="w-full">
+					<Table.Header class="text-xs uppercase text-muted-foreground">
+						<Table.Row>
+							<Table.Head class="px-2 py-1.5 w-[60px]">#</Table.Head>
+							<Table.Head class="px-2 py-1.5 w-[70px]">Priority</Table.Head>
+							<Table.Head class="px-2 py-1.5 w-[50px]">Age</Table.Head>
+							<Table.Head class="px-2 py-1.5">Title</Table.Head>
+							<Table.Head class="px-2 py-1.5 w-[80px] text-right">Done</Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
 						{#each actionRequiredView as issue}
 							{@const key = issueKey(issue)}
-							<TableBodyRow class={isDone(key) ? 'opacity-50' : ''}>
-								<TableBodyCell class="px-2 py-1.5 mono">{issue.number}</TableBodyCell>
-								<TableBodyCell class="px-2 py-1.5">
-									<Badge color={issue.priority === 'critical' ? 'red' : 'yellow'}>{issue.priority}</Badge>
-								</TableBodyCell>
-								<TableBodyCell class="px-2 py-1.5 text-gray-500 mono">{ageText(issue.created_at)}</TableBodyCell>
-								<TableBodyCell class="px-2 py-1.5">{issue.title}</TableBodyCell>
-								<TableBodyCell class="px-2 py-1.5 text-right">
-									<Button size="xs" color="alternative" class="!py-0.5 !px-2" onclick={() => toggleDone(key)}>
+							<Table.Row class={isDone(key) ? 'opacity-50' : ''}>
+								<Table.Cell class="px-2 py-1.5 mono">{issue.number}</Table.Cell>
+								<Table.Cell class="px-2 py-1.5">
+									<Badge
+										variant="outline"
+										class={issue.priority === 'critical'
+											? 'border-red-500/30 bg-red-500/15 text-red-600 dark:text-red-400'
+											: 'border-yellow-500/30 bg-yellow-500/15 text-yellow-600 dark:text-yellow-400'}
+									>{issue.priority}</Badge>
+								</Table.Cell>
+								<Table.Cell class="px-2 py-1.5 text-muted-foreground mono">{ageText(issue.created_at)}</Table.Cell>
+								<Table.Cell class="px-2 py-1.5">{issue.title}</Table.Cell>
+								<Table.Cell class="px-2 py-1.5 text-right">
+									<Button size="xs" variant="outline" onclick={() => toggleDone(key)}>
 										{isDone(key) ? 'Undo' : '✓ Done'}
 									</Button>
-								</TableBodyCell>
-							</TableBodyRow>
+								</Table.Cell>
+							</Table.Row>
 						{/each}
-					</TableBody>
-				</Table>
+					</Table.Body>
+				</Table.Root>
 			</div>
 		{/if}
 	</div>
 
 	<div class="mt-6">
-		<h2 class="text-xl font-semibold text-gray-100 mb-1">Issues TODO</h2>
-		<p class="text-sm text-gray-500 mb-3">Top 10 issues by priority then age</p>
+		<h2 class="text-xl font-semibold text-foreground mb-1">Issues TODO</h2>
+		<p class="text-sm text-muted-foreground mb-3">Top 10 issues by priority then age</p>
 		{#if issuesTodoView.length === 0}
-			<Card class="bg-gray-800 border-gray-700 max-w-none">
-				<p class="text-gray-600 text-center py-4">
-					{view === 'done' ? 'Nothing marked done here yet.' : 'No open issues.'}
-				</p>
-			</Card>
+			<Card.Root>
+				<Card.Content>
+					<p class="text-muted-foreground text-center py-4">
+						{view === 'done' ? 'Nothing marked done here yet.' : 'No open issues.'}
+					</p>
+				</Card.Content>
+			</Card.Root>
 		{:else}
-			<div class="w-full overflow-x-auto">
-				<Table striped hoverable class="w-full">
-					<TableHead class="text-xs uppercase text-gray-400">
-						<TableHeadCell class="px-2 py-1.5 w-[60px]">#</TableHeadCell>
-						<TableHeadCell class="px-2 py-1.5 w-[70px]">Priority</TableHeadCell>
-						<TableHeadCell class="px-2 py-1.5 w-[50px]">Age</TableHeadCell>
-						<TableHeadCell class="px-2 py-1.5">Title</TableHeadCell>
-						<TableHeadCell class="px-2 py-1.5 w-[80px] text-right">Done</TableHeadCell>
-					</TableHead>
-					<TableBody>
+			<div class="w-full overflow-x-auto rounded-lg border">
+				<Table.Root class="w-full">
+					<Table.Header class="text-xs uppercase text-muted-foreground">
+						<Table.Row>
+							<Table.Head class="px-2 py-1.5 w-[60px]">#</Table.Head>
+							<Table.Head class="px-2 py-1.5 w-[70px]">Priority</Table.Head>
+							<Table.Head class="px-2 py-1.5 w-[50px]">Age</Table.Head>
+							<Table.Head class="px-2 py-1.5">Title</Table.Head>
+							<Table.Head class="px-2 py-1.5 w-[80px] text-right">Done</Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
 						{#each issuesTodoView as issue}
 							{@const key = issueKey(issue)}
-							<TableBodyRow class={isDone(key) ? 'opacity-50' : ''}>
-								<TableBodyCell class="px-2 py-1.5 mono">{issue.number}</TableBodyCell>
-								<TableBodyCell class="px-2 py-1.5">{issue.priority ?? '-'}</TableBodyCell>
-								<TableBodyCell class="px-2 py-1.5 text-gray-500 mono">{ageText(issue.created_at)}</TableBodyCell>
-								<TableBodyCell class="px-2 py-1.5">{issue.title}</TableBodyCell>
-								<TableBodyCell class="px-2 py-1.5 text-right">
-									<Button size="xs" color="alternative" class="!py-0.5 !px-2" onclick={() => toggleDone(key)}>
+							<Table.Row class={isDone(key) ? 'opacity-50' : ''}>
+								<Table.Cell class="px-2 py-1.5 mono">{issue.number}</Table.Cell>
+								<Table.Cell class="px-2 py-1.5">{issue.priority ?? '-'}</Table.Cell>
+								<Table.Cell class="px-2 py-1.5 text-muted-foreground mono">{ageText(issue.created_at)}</Table.Cell>
+								<Table.Cell class="px-2 py-1.5">{issue.title}</Table.Cell>
+								<Table.Cell class="px-2 py-1.5 text-right">
+									<Button size="xs" variant="outline" onclick={() => toggleDone(key)}>
 										{isDone(key) ? 'Undo' : '✓ Done'}
 									</Button>
-								</TableBodyCell>
-							</TableBodyRow>
+								</Table.Cell>
+							</Table.Row>
 						{/each}
-					</TableBody>
-				</Table>
+					</Table.Body>
+				</Table.Root>
 			</div>
 		{/if}
 	</div>
 
 	<div class="mt-6">
-		<h2 class="text-xl font-semibold text-gray-100 mb-1">PRs TODO</h2>
-		<p class="text-sm text-gray-500 mb-3">Top 10 PRs by conflicts then age</p>
+		<h2 class="text-xl font-semibold text-foreground mb-1">PRs TODO</h2>
+		<p class="text-sm text-muted-foreground mb-3">Top 10 PRs by conflicts then age</p>
 		{#if prsTodoView.length === 0}
-			<Card class="bg-gray-800 border-gray-700 max-w-none">
-				<p class="text-gray-600 text-center py-4">
-					{view === 'done' ? 'Nothing marked done here yet.' : 'No open pull requests.'}
-				</p>
-			</Card>
+			<Card.Root>
+				<Card.Content>
+					<p class="text-muted-foreground text-center py-4">
+						{view === 'done' ? 'Nothing marked done here yet.' : 'No open pull requests.'}
+					</p>
+				</Card.Content>
+			</Card.Root>
 		{:else}
-			<div class="w-full overflow-x-auto">
-				<Table striped hoverable class="w-full">
-					<TableHead class="text-xs uppercase text-gray-400">
-						<TableHeadCell class="px-2 py-1.5 w-[60px]">#</TableHeadCell>
-						<TableHeadCell class="px-2 py-1.5 w-[70px]">Risk</TableHeadCell>
-						<TableHeadCell class="px-2 py-1.5 w-[50px]">Age</TableHeadCell>
-						<TableHeadCell class="px-2 py-1.5">Title</TableHeadCell>
-						<TableHeadCell class="px-2 py-1.5 w-[80px] text-right">Done</TableHeadCell>
-					</TableHead>
-					<TableBody>
+			<div class="w-full overflow-x-auto rounded-lg border">
+				<Table.Root class="w-full">
+					<Table.Header class="text-xs uppercase text-muted-foreground">
+						<Table.Row>
+							<Table.Head class="px-2 py-1.5 w-[60px]">#</Table.Head>
+							<Table.Head class="px-2 py-1.5 w-[70px]">Risk</Table.Head>
+							<Table.Head class="px-2 py-1.5 w-[50px]">Age</Table.Head>
+							<Table.Head class="px-2 py-1.5">Title</Table.Head>
+							<Table.Head class="px-2 py-1.5 w-[80px] text-right">Done</Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
 						{#each prsTodoView as pr}
 							{@const key = prKey(pr)}
-							<TableBodyRow class={isDone(key) ? 'opacity-50' : ''}>
-								<TableBodyCell class="px-2 py-1.5 mono">{pr.number}</TableBodyCell>
-								<TableBodyCell class="px-2 py-1.5">
+							<Table.Row class={isDone(key) ? 'opacity-50' : ''}>
+								<Table.Cell class="px-2 py-1.5 mono">{pr.number}</Table.Cell>
+								<Table.Cell class="px-2 py-1.5">
 									{#if pr.risk}
-										<Badge color={riskColor(pr.risk)}>{pr.risk}</Badge>
+										{#if riskBadgeClass(pr.risk)}
+											<Badge variant="outline" class={riskBadgeClass(pr.risk)}>{pr.risk}</Badge>
+										{:else}
+											<Badge variant="secondary">{pr.risk}</Badge>
+										{/if}
 									{:else}
-										<span class="text-gray-500">-</span>
+										<span class="text-muted-foreground">-</span>
 									{/if}
-								</TableBodyCell>
-								<TableBodyCell class="px-2 py-1.5 text-gray-500 mono">{ageText(pr.created_at)}</TableBodyCell>
-								<TableBodyCell class="px-2 py-1.5">{pr.title}</TableBodyCell>
-								<TableBodyCell class="px-2 py-1.5 text-right">
-									<Button size="xs" color="alternative" class="!py-0.5 !px-2" onclick={() => toggleDone(key)}>
+								</Table.Cell>
+								<Table.Cell class="px-2 py-1.5 text-muted-foreground mono">{ageText(pr.created_at)}</Table.Cell>
+								<Table.Cell class="px-2 py-1.5">{pr.title}</Table.Cell>
+								<Table.Cell class="px-2 py-1.5 text-right">
+									<Button size="xs" variant="outline" onclick={() => toggleDone(key)}>
 										{isDone(key) ? 'Undo' : '✓ Done'}
 									</Button>
-								</TableBodyCell>
-							</TableBodyRow>
+								</Table.Cell>
+							</Table.Row>
 						{/each}
-					</TableBody>
-				</Table>
+					</Table.Body>
+				</Table.Root>
 			</div>
 		{/if}
 	</div>

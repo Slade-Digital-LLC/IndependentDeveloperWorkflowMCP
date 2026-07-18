@@ -18,7 +18,7 @@
 <select
 	{value}
 	onchange={handle}
-	class="w-full rounded border border-gray-600 bg-gray-700 px-1 py-0.5 text-xs text-gray-200 focus:border-blue-500 focus:outline-none"
+	class="w-full rounded border border-border bg-muted px-1 py-0.5 text-xs text-foreground focus:border-primary focus:outline-none"
 >
 	<option value="">{placeholder}</option>
 	{#each options as o (o)}

@@ -13,7 +13,7 @@
 </script>
 
 <!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized above -->
-<div class="markdown-body text-sm text-gray-300 max-h-96 overflow-y-auto break-words">{@html html}</div>
+<div class="markdown-body text-sm text-foreground/90 max-h-96 overflow-y-auto break-words">{@html html}</div>
 
 <style>
 	/* Minimal GFM-ish styling scoped to rendered bodies; the app has no
@@ -22,7 +22,7 @@
 	.markdown-body :global(h2),
 	.markdown-body :global(h3),
 	.markdown-body :global(h4) {
-		color: rgb(243 244 246);
+		color: var(--foreground);
 		font-weight: 600;
 		margin: 0.75rem 0 0.25rem;
 		line-height: 1.3;
@@ -41,13 +41,13 @@
 	.markdown-body :global(ol) { list-style: decimal; }
 	.markdown-body :global(li) { margin: 0.125rem 0; }
 	.markdown-body :global(code) {
-		background: rgb(17 24 39);
+		background: var(--muted);
 		padding: 0.125rem 0.375rem;
 		border-radius: 0.25rem;
 		font-size: 0.8125rem;
 	}
 	.markdown-body :global(pre) {
-		background: rgb(17 24 39);
+		background: var(--muted);
 		padding: 0.625rem 0.75rem;
 		border-radius: 0.375rem;
 		overflow-x: auto;
@@ -58,13 +58,13 @@
 		padding: 0;
 	}
 	.markdown-body :global(a) {
-		color: rgb(96 165 250);
+		color: var(--primary);
 		text-decoration: underline;
 	}
 	.markdown-body :global(blockquote) {
-		border-left: 3px solid rgb(75 85 99);
+		border-left: 3px solid var(--border);
 		padding-left: 0.75rem;
-		color: rgb(156 163 175);
+		color: var(--muted-foreground);
 		margin: 0.5rem 0;
 	}
 	.markdown-body :global(table) {
@@ -74,12 +74,12 @@
 	}
 	.markdown-body :global(th),
 	.markdown-body :global(td) {
-		border: 1px solid rgb(55 65 81);
+		border: 1px solid var(--border);
 		padding: 0.25rem 0.5rem;
 	}
 	.markdown-body :global(img) { max-width: 100%; }
 	.markdown-body :global(hr) {
-		border-color: rgb(55 65 81);
+		border-color: var(--border);
 		margin: 0.75rem 0;
 	}
 </style>

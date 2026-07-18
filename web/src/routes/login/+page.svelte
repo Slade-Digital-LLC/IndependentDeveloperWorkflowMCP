@@ -1,5 +1,10 @@
 <script lang="ts">
-	import { Button, Input, Label, Alert, Heading, P, Dropdown, DropdownItem } from 'flowbite-svelte';
+	import { Button, buttonVariants } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import * as Alert from '$lib/components/ui/alert';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import { cn } from '$lib/utils';
 	import { locale, t, LOCALES, type Locale } from '$lib/i18n';
 
 	let username = $state('');
@@ -54,7 +59,7 @@
 </svelte:head>
 
 <div
-	class="min-h-screen flex items-center justify-center relative overflow-hidden text-gray-100 px-4 py-12"
+	class="min-h-screen flex items-center justify-center relative overflow-hidden text-white px-4 py-12"
 >
 	<!-- Wizard-themed mesh gradient + twinkling stars -->
 	<div class="pointer-events-none absolute inset-0 -z-10">
@@ -102,33 +107,31 @@
 
 	<!-- Locale picker (top-right dropdown) -->
 	<div class="absolute top-4 right-4 z-10">
-		<Button
-			id="locale-trigger"
-			color="alternative"
-			size="xs"
-			class="!bg-white/10 !border-white/20 !text-white hover:!bg-white/20 backdrop-blur-md flex items-center gap-1.5"
-		>
-			<span class="text-base leading-none">{activeLocale.flag}</span>
-			<span class="text-xs">{activeLocale.label}</span>
-			<svg class="w-3 h-3 ms-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-			</svg>
-		</Button>
-		<Dropdown
-			triggeredBy="#locale-trigger"
-			class="z-50 max-h-80 overflow-y-auto"
-			placement="bottom-end"
-		>
-			{#each LOCALES as l}
-				<DropdownItem onclick={() => setLocale(l.code)}>
-					<span class="me-2 text-base leading-none">{l.flag}</span>
-					<span class="text-sm">{l.label}</span>
-					{#if currentLocale === l.code}
-						<span class="ms-auto text-amber-500">✓</span>
-					{/if}
-				</DropdownItem>
-			{/each}
-		</Dropdown>
+		<DropdownMenu.Root>
+			<DropdownMenu.Trigger
+				class={cn(
+					buttonVariants({ variant: 'outline', size: 'xs' }),
+					'bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white backdrop-blur-md flex items-center gap-1.5'
+				)}
+			>
+				<span class="text-base leading-none">{activeLocale.flag}</span>
+				<span class="text-xs">{activeLocale.label}</span>
+				<svg class="w-3 h-3 ms-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+				</svg>
+			</DropdownMenu.Trigger>
+			<DropdownMenu.Content align="end" class="z-50 max-h-80 overflow-y-auto">
+				{#each LOCALES as l}
+					<DropdownMenu.Item onclick={() => setLocale(l.code)}>
+						<span class="me-2 text-base leading-none">{l.flag}</span>
+						<span class="text-sm">{l.label}</span>
+						{#if currentLocale === l.code}
+							<span class="ms-auto text-amber-500">✓</span>
+						{/if}
+					</DropdownMenu.Item>
+				{/each}
+			</DropdownMenu.Content>
+		</DropdownMenu.Root>
 	</div>
 
 	<div class="w-full max-w-sm relative">
@@ -137,10 +140,10 @@
 				<div class="absolute inset-0 rounded-full bg-amber-400/30 blur-2xl"></div>
 				<img src="/wizard-icon.png" alt="" class="relative h-16 w-16 mb-3 drop-shadow-[0_0_18px_rgba(251,191,36,0.6)]" />
 			</div>
-			<Heading tag="h1" class="text-2xl font-semibold text-white">
+			<h1 class="text-2xl font-semibold text-white">
 				{translate('login.welcome')}
-			</Heading>
-			<P class="text-sm text-purple-200/80 mt-1">{translate('login.subtitle')}</P>
+			</h1>
+			<p class="text-sm text-purple-200/80 mt-1">{translate('login.subtitle')}</p>
 		</div>
 
 		<div class="rounded-xl border border-white/10 bg-white/5 backdrop-blur-xl p-6 shadow-2xl shadow-black/40">
@@ -156,6 +159,7 @@
 						bind:value={username}
 						required
 						placeholder={translate('login.usernamePlaceholder')}
+						class="border-white/15 bg-white/5 text-white placeholder:text-purple-200/40"
 					/>
 				</div>
 
@@ -169,14 +173,21 @@
 						autocomplete="current-password"
 						bind:value={password}
 						required
+						class="border-white/15 bg-white/5 text-white placeholder:text-purple-200/40"
 					/>
 				</div>
 
 				{#if error}
-					<Alert color="red" class="text-xs">{error}</Alert>
+					<Alert.Root variant="destructive" class="text-xs">
+						<Alert.Description class="text-xs">{error}</Alert.Description>
+					</Alert.Root>
 				{/if}
 
-				<Button type="submit" color="purple" disabled={submitting} class="w-full">
+				<Button
+					type="submit"
+					disabled={submitting}
+					class="w-full bg-purple-600 text-white hover:bg-purple-700"
+				>
 					{submitting ? translate('login.signingIn') : translate('login.submit')}
 				</Button>
 			</form>
@@ -191,8 +202,8 @@
 
 			<Button
 				href="/oauth2/start?rd=/"
-				color="alternative"
-				class="w-full !py-2.5 flex items-center justify-center gap-3 !bg-white/5 !border-white/15 !text-white hover:!bg-white/15"
+				variant="outline"
+				class="w-full h-auto py-2.5 flex items-center justify-center gap-3 bg-white/5 border-white/15 text-white hover:bg-white/15 hover:text-white"
 			>
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
@@ -221,9 +232,9 @@
 			</Button>
 		</div>
 
-		<P class="text-center text-xs text-purple-200/60 mt-8 italic">
+		<p class="text-center text-xs text-purple-200/60 mt-8 italic">
 			{translate('login.tagline')}
-		</P>
+		</p>
 	</div>
 </div>
 

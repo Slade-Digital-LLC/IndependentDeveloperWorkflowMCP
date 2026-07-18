@@ -1,5 +1,10 @@
 <script lang="ts">
-	import { Card, Badge, Button, Input, Label, Helper, Alert, Heading } from 'flowbite-svelte';
+	import * as Card from '$lib/components/ui/card';
+	import * as Alert from '$lib/components/ui/alert';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
 
 	type Status = 'configured' | 'not_configured' | 'unknown';
 
@@ -44,8 +49,10 @@
 	let testMessage: string | null = $state(null);
 	let testError: boolean = $state(false);
 
-	const badgeColor = status === 'configured' ? 'green' : 'dark';
-	const badgeText = statusLabel ?? (status === 'configured' ? 'Configured' : 'Not configured');
+	const alertGreen = 'border-green-500/30 bg-green-500/15 text-green-600 dark:text-green-400 *:data-[slot=alert-description]:text-green-600 dark:*:data-[slot=alert-description]:text-green-400';
+
+	const badgeConfigured = status === 'configured';
+	const badgeText = statusLabel ?? (badgeConfigured ? 'Configured' : 'Not configured');
 
 	async function handleSave() {
 		if (!token.trim()) return;
@@ -76,44 +83,55 @@
 	}
 </script>
 
-<Card class="bg-gray-800 border-gray-700 max-w-none">
-	<Heading tag="h3" class="text-base mb-4">{title}</Heading>
-
-	<div class="mb-3">
-		<Badge large color={badgeColor}>{badgeText}</Badge>
-	</div>
-
-	{#if helpHtml}
-		<Helper class="mb-3">{@html helpHtml}</Helper>
-	{/if}
-
-	{#if saveMessage}
-		<Alert color={saveError ? 'red' : 'green'} class="text-xs py-2 mb-2">{saveMessage}</Alert>
-	{/if}
-	{#if testMessage}
-		<Alert color={testError ? 'red' : 'green'} class="text-xs py-2 mb-2">{testMessage}</Alert>
-	{/if}
-
-	<form onsubmit={(e) => { e.preventDefault(); handleSave(); }} class="space-y-2">
-		{#if urlLabel}
-			<div>
-				<Label class="text-xs mb-1">{urlLabel}</Label>
-				<Input type="text" bind:value={urlValue} placeholder={urlPlaceholder} disabled={saving} size="sm" />
-			</div>
-		{/if}
-		<div>
-			<Label class="text-xs mb-1">{tokenLabel}</Label>
-			<Input type="password" bind:value={token} placeholder={tokenPlaceholder} disabled={saving} size="sm" />
-		</div>
-		<div class="flex gap-2">
-			<Button type="submit" color="blue" disabled={saving || !token.trim()} size="sm" class="flex-1">
-				{saving ? 'Saving...' : 'Save'}
-			</Button>
-			{#if onTest}
-				<Button type="button" color="alternative" onclick={handleTest} disabled={testing} size="sm" class="flex-1">
-					{testing ? 'Testing...' : 'Test'}
-				</Button>
+<Card.Root size="sm">
+	<Card.Header>
+		<Card.Title class="text-base">{title}</Card.Title>
+	</Card.Header>
+	<Card.Content>
+		<div class="mb-3">
+			{#if badgeConfigured}
+				<Badge variant="outline" class="border-green-500/30 bg-green-500/15 text-green-600 dark:text-green-400">{badgeText}</Badge>
+			{:else}
+				<Badge variant="secondary">{badgeText}</Badge>
 			{/if}
 		</div>
-	</form>
-</Card>
+
+		{#if helpHtml}
+			<p class="text-xs text-muted-foreground mb-3">{@html helpHtml}</p>
+		{/if}
+
+		{#if saveMessage}
+			<Alert.Root variant={saveError ? 'destructive' : 'default'} class="py-2 mb-2 {saveError ? '' : alertGreen}">
+				<Alert.Description class="text-xs">{saveMessage}</Alert.Description>
+			</Alert.Root>
+		{/if}
+		{#if testMessage}
+			<Alert.Root variant={testError ? 'destructive' : 'default'} class="py-2 mb-2 {testError ? '' : alertGreen}">
+				<Alert.Description class="text-xs">{testMessage}</Alert.Description>
+			</Alert.Root>
+		{/if}
+
+		<form onsubmit={(e) => { e.preventDefault(); handleSave(); }} class="space-y-2">
+			{#if urlLabel}
+				<div>
+					<Label class="text-xs mb-1">{urlLabel}</Label>
+					<Input type="text" bind:value={urlValue} placeholder={urlPlaceholder} disabled={saving} class="h-8" />
+				</div>
+			{/if}
+			<div>
+				<Label class="text-xs mb-1">{tokenLabel}</Label>
+				<Input type="password" bind:value={token} placeholder={tokenPlaceholder} disabled={saving} class="h-8" />
+			</div>
+			<div class="flex gap-2">
+				<Button type="submit" disabled={saving || !token.trim()} size="sm" class="flex-1">
+					{saving ? 'Saving...' : 'Save'}
+				</Button>
+				{#if onTest}
+					<Button type="button" variant="outline" onclick={handleTest} disabled={testing} size="sm" class="flex-1">
+						{testing ? 'Testing...' : 'Test'}
+					</Button>
+				{/if}
+			</div>
+		</form>
+	</Card.Content>
+</Card.Root>

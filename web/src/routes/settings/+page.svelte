@@ -1,27 +1,17 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import {
-		Card,
-		Badge,
-		Tabs,
-		TabItem,
-		Button,
-		Input,
-		Label,
-		Helper,
-		Alert,
-		Heading,
-		Radio,
-		Table,
-		TableHead,
-		TableHeadCell,
-		TableBody,
-		TableBodyRow,
-		TableBodyCell,
-		Modal,
-		Tooltip,
-		Toggle,
-	} from 'flowbite-svelte';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import { Switch } from '$lib/components/ui/switch';
+	import * as Card from '$lib/components/ui/card';
+	import * as Table from '$lib/components/ui/table';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import * as Alert from '$lib/components/ui/alert';
+	import * as Tabs from '$lib/components/ui/tabs';
+	import * as RadioGroup from '$lib/components/ui/radio-group';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { colorConfig, colorPresets, type ColorConfig } from '$lib/colors';
 	import { theme } from '$lib/stores';
 	import { t, tr } from '$lib/i18n';
@@ -59,6 +49,8 @@
 		type UserRecord,
 		type Role,
 	} from '$lib/api';
+
+	let activeTab: string = $state('repos');
 
 	let colors: ColorConfig = $state({ ...colorConfig.defaults });
 	colorConfig.subscribe(c => (colors = { ...c }));
@@ -492,15 +484,30 @@
 	in src/lib/i18n/{en,fr}.json; other locales fall back to English).
 -->
 {#snippet infoTip(id: string, bodyKey: string)}
-	<button
-		type="button"
-		{id}
-		aria-label={$t('common.moreInfo')}
-		class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-gray-700 text-gray-300 text-[10px] font-bold hover:bg-blue-600 hover:text-white transition-colors cursor-help"
-	>?</button>
-	<Tooltip triggeredBy="#{id}" placement="right" class="max-w-xs text-xs leading-snug">
-		{$t(bodyKey)}
-	</Tooltip>
+	<Tooltip.Provider>
+		<Tooltip.Root>
+			<Tooltip.Trigger
+				{id}
+				aria-label={$t('common.moreInfo')}
+				class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-muted text-foreground/90 text-[10px] font-bold hover:bg-primary hover:text-primary-foreground transition-colors cursor-help"
+			>?</Tooltip.Trigger>
+			<Tooltip.Content side="right" class="max-w-xs text-xs leading-snug">
+				{$t(bodyKey)}
+			</Tooltip.Content>
+		</Tooltip.Root>
+	</Tooltip.Provider>
+{/snippet}
+
+<!-- Reusable success/error feedback alert. -->
+{#snippet statusAlert(message: string, isError: boolean, cls: string = '')}
+	<Alert.Root
+		variant={isError ? 'destructive' : 'default'}
+		class="py-2 {isError ? '' : 'border-green-500/30 bg-green-500/10'} {cls}"
+	>
+		<Alert.Description class="text-xs {isError ? '' : 'text-green-600 dark:text-green-400'}">
+			{message}
+		</Alert.Description>
+	</Alert.Root>
 {/snippet}
 
 <svelte:head>
@@ -508,435 +515,502 @@
 </svelte:head>
 
 <div class="mb-4">
-	<Heading tag="h2" class="text-xl mb-1">{$t('settings.title')}</Heading>
-	<p class="text-sm text-gray-500">{$t('settings.subtitle')}</p>
+	<h2 class="text-xl font-bold tracking-tight mb-1">{$t('settings.title')}</h2>
+	<p class="text-sm text-muted-foreground">{$t('settings.subtitle')}</p>
 </div>
 
-<Tabs tabStyle="underline" contentClass="bg-transparent p-0 mt-4">
+<Tabs.Root bind:value={activeTab}>
+	<Tabs.List class="h-auto flex-wrap">
+		<Tabs.Trigger value="repos">{$t('settings.tabs.repos')}</Tabs.Trigger>
+		<Tabs.Trigger value="git-providers">{$t('settings.tabs.gitProviders')}</Tabs.Trigger>
+		<Tabs.Trigger value="ai-providers">{$t('settings.tabs.aiProviders')}</Tabs.Trigger>
+		<Tabs.Trigger value="license">{$t('settings.tabs.license')}</Tabs.Trigger>
+		<Tabs.Trigger value="appearance">{$t('settings.tabs.appearance')}</Tabs.Trigger>
+		<Tabs.Trigger value="configuration">{$t('settings.tabs.configuration')}</Tabs.Trigger>
+		<Tabs.Trigger value="reliability">{$t('settings.tabs.reliability')}</Tabs.Trigger>
+		<Tabs.Trigger value="secrets">{$t('settings.tabs.secrets')}</Tabs.Trigger>
+		<Tabs.Trigger value="users">{$t('settings.tabs.users')}</Tabs.Trigger>
+	</Tabs.List>
+
 	<!-- ========================= REPOSITORIES ========================= -->
-	<TabItem open title={$t('settings.tabs.repos')}>
+	<Tabs.Content value="repos" class="mt-2">
 		<div class="w-full">
-			<Card class="bg-gray-800 border-gray-700 max-w-none">
-				<Heading tag="h3" class="text-base mb-4">{$t('settings.repos.title')}</Heading>
+			<Card.Root>
+				<Card.Header>
+					<Card.Title>{$t('settings.repos.title')}</Card.Title>
+				</Card.Header>
+				<Card.Content>
+					{#if reposList}
+						<div class="mb-3">
+							<h4 class="text-xs font-semibold text-primary mb-2">{$t('settings.repos.configured')} ({reposList.repos.length})</h4>
+							{#if reposList.repos.length === 0}
+								<p class="text-xs text-muted-foreground">{$t('settings.repos.none')}</p>
+							{:else}
+								<ul class="space-y-1 text-xs">
+									{#each reposList.repos as r}
+										<li class="flex items-center justify-between gap-2">
+											<span class="text-foreground/90 mono">{r.slug}</span>
+											<div class="flex items-center gap-2">
+												<Badge
+													variant={r.apply ? 'outline' : 'secondary'}
+													class={r.apply ? 'border-green-500/30 bg-green-500/15 text-green-600 dark:text-green-400' : ''}
+												>{r.apply ? $t('settings.repos.badge.apply') : $t('settings.repos.badge.dryrun')}</Badge>
+												<Button variant="outline" size="xs" onclick={() => openFeaturesModal(r.slug)}>
+													{$t('settings.repos.editFeatures')}
+												</Button>
+											</div>
+										</li>
+									{/each}
+								</ul>
+							{/if}
+						</div>
 
-				{#if reposList}
-					<div class="mb-3">
-						<h4 class="text-xs font-semibold text-blue-400 mb-2">{$t('settings.repos.configured')} ({reposList.repos.length})</h4>
-						{#if reposList.repos.length === 0}
-							<p class="text-xs text-gray-500">{$t('settings.repos.none')}</p>
-						{:else}
-							<ul class="space-y-1 text-xs">
-								{#each reposList.repos as r}
-									<li class="flex items-center justify-between gap-2">
-										<span class="text-gray-300 mono">{r.slug}</span>
-										<div class="flex items-center gap-2">
-											<Badge color={r.apply ? 'green' : 'dark'}>{r.apply ? $t('settings.repos.badge.apply') : $t('settings.repos.badge.dryrun')}</Badge>
-											<Button color="alternative" size="xs" onclick={() => openFeaturesModal(r.slug)}>
-												{$t('settings.repos.editFeatures')}
-											</Button>
-										</div>
-									</li>
-								{/each}
-							</ul>
-						{/if}
-					</div>
+						<div class="border-t pt-3 space-y-2">
+							{#if addRepoMessage}
+								{@render statusAlert(addRepoMessage, addRepoError)}
+							{/if}
 
-					<div class="border-t border-gray-700 pt-3 space-y-2">
-						{#if addRepoMessage}
-							<Alert color={addRepoError ? 'red' : 'green'} class="text-xs py-2">{addRepoMessage}</Alert>
-						{/if}
-
-						{#if reposList.dynamic_add_supported}
-							<form onsubmit={(e) => { e.preventDefault(); handleAddRepo(); }} class="space-y-2">
-								<div>
-									<Label for="repo-slug" class="text-xs mb-1">{$t('settings.repos.slug')}</Label>
-									<Input id="repo-slug" type="text" bind:value={newRepoSlug} placeholder="owner/repo" disabled={addingRepo} size="sm" />
-								</div>
-								<div>
-									<Label for="repo-path" class="text-xs mb-1">{$t('settings.repos.pathOptional')}</Label>
-									<Input id="repo-path" type="text" bind:value={newRepoPath} placeholder="/abs/path" disabled={addingRepo} size="sm" />
-								</div>
-								<Button type="submit" color="blue" disabled={addingRepo || !newRepoSlug.trim()} size="sm" class="w-full">
-									{addingRepo ? $t('settings.repos.adding') : $t('settings.repos.add')}
-								</Button>
-							</form>
-						{:else}
-							<Helper>
-								{$t('settings.repos.dynamicNotAvailable')}
-								<code class="rounded bg-gray-700 px-1 py-0.5">~/.wshm/global.toml</code>
-								{$t('settings.repos.dynamicNotAvailable.suffix')}
-							</Helper>
-						{/if}
-					</div>
-				{:else}
-					<p class="text-sm text-gray-500">{$t('common.loading')}</p>
-				{/if}
-			</Card>
+							{#if reposList.dynamic_add_supported}
+								<form onsubmit={(e) => { e.preventDefault(); handleAddRepo(); }} class="space-y-2">
+									<div>
+										<Label for="repo-slug" class="text-xs mb-1">{$t('settings.repos.slug')}</Label>
+										<Input id="repo-slug" type="text" bind:value={newRepoSlug} placeholder="owner/repo" disabled={addingRepo} class="h-8" />
+									</div>
+									<div>
+										<Label for="repo-path" class="text-xs mb-1">{$t('settings.repos.pathOptional')}</Label>
+										<Input id="repo-path" type="text" bind:value={newRepoPath} placeholder="/abs/path" disabled={addingRepo} class="h-8" />
+									</div>
+									<Button type="submit" disabled={addingRepo || !newRepoSlug.trim()} size="sm" class="w-full">
+										{addingRepo ? $t('settings.repos.adding') : $t('settings.repos.add')}
+									</Button>
+								</form>
+							{:else}
+								<p class="text-xs text-muted-foreground">
+									{$t('settings.repos.dynamicNotAvailable')}
+									<code class="rounded bg-muted px-1 py-0.5">~/.wshm/global.toml</code>
+									{$t('settings.repos.dynamicNotAvailable.suffix')}
+								</p>
+							{/if}
+						</div>
+					{:else}
+						<p class="text-sm text-muted-foreground">{$t('common.loading')}</p>
+					{/if}
+				</Card.Content>
+			</Card.Root>
 		</div>
-	</TabItem>
+	</Tabs.Content>
 
 	<!-- ========================= GIT PROVIDERS ========================= -->
-	<TabItem title={$t('settings.tabs.gitProviders')}>
+	<Tabs.Content value="git-providers" class="mt-2">
 		<div class="w-full">
-			<Card class="bg-gray-800 border-gray-700 max-w-none">
-				<Heading tag="h3" class="text-base mb-4">{$t('settings.git.title')}</Heading>
-
-				{#if authStatus}
-					<div class="mb-3">
-						<Badge large color={authStatus.github ? 'green' : 'dark'}>
-							{authStatus.github ? $t('settings.git.configured') : $t('settings.git.notConfigured')}
-						</Badge>
-					</div>
-
-					<Helper class="mb-3">
-						{$t('settings.git.helper.intro')} <a href="https://github.com/settings/tokens" target="_blank" class="text-blue-400 hover:underline">{$t('settings.git.helper.generate')}</a> {$t('settings.git.helper.scope')}
-					</Helper>
-
-					{#if ghMessage}
-						<Alert color={ghError ? 'red' : 'green'} class="text-xs py-2 mb-2">{ghMessage}</Alert>
-					{/if}
-
-					<form onsubmit={(e) => { e.preventDefault(); handleSetGithub(); }} class="space-y-2">
-						<div>
-							<Label for="gh-token" class="text-xs mb-1">{$t('settings.git.token')}</Label>
-							<Input id="gh-token" type="password" bind:value={ghToken} placeholder="ghp_..." disabled={savingGh} size="sm" />
+			<Card.Root>
+				<Card.Header>
+					<Card.Title>{$t('settings.git.title')}</Card.Title>
+				</Card.Header>
+				<Card.Content>
+					{#if authStatus}
+						<div class="mb-3">
+							<Badge
+								variant={authStatus.github ? 'outline' : 'secondary'}
+								class={authStatus.github ? 'border-green-500/30 bg-green-500/15 text-green-600 dark:text-green-400' : ''}
+							>
+								{authStatus.github ? $t('settings.git.configured') : $t('settings.git.notConfigured')}
+							</Badge>
 						</div>
-						<Button type="submit" color="blue" disabled={savingGh || !ghToken.trim()} size="sm" class="w-full">
-							{savingGh ? $t('common.saving') : $t('settings.git.save')}
-						</Button>
-						{#if authStatus.github}
-							<Button type="button" color="red" outline disabled={savingGh} size="sm" class="w-full" onclick={handleRemoveGithub}>
-								{$t('settings.git.remove')}
-							</Button>
+
+						<p class="text-xs text-muted-foreground mb-3">
+							{$t('settings.git.helper.intro')} <a href="https://github.com/settings/tokens" target="_blank" class="text-primary hover:underline">{$t('settings.git.helper.generate')}</a> {$t('settings.git.helper.scope')}
+						</p>
+
+						{#if ghMessage}
+							{@render statusAlert(ghMessage, ghError, 'mb-2')}
 						{/if}
-					</form>
-				{:else}
-					<p class="text-sm text-gray-500">{$t('common.loading')}</p>
-				{/if}
-			</Card>
-			<Helper class="mt-3 text-xs">{$t('settings.git.moreSoon')}</Helper>
+
+						<form onsubmit={(e) => { e.preventDefault(); handleSetGithub(); }} class="space-y-2">
+							<div>
+								<Label for="gh-token" class="text-xs mb-1">{$t('settings.git.token')}</Label>
+								<Input id="gh-token" type="password" bind:value={ghToken} placeholder="ghp_..." disabled={savingGh} class="h-8" />
+							</div>
+							<Button type="submit" disabled={savingGh || !ghToken.trim()} size="sm" class="w-full">
+								{savingGh ? $t('common.saving') : $t('settings.git.save')}
+							</Button>
+							{#if authStatus.github}
+								<Button type="button" variant="destructive" disabled={savingGh} size="sm" class="w-full" onclick={handleRemoveGithub}>
+									{$t('settings.git.remove')}
+								</Button>
+							{/if}
+						</form>
+					{:else}
+						<p class="text-sm text-muted-foreground">{$t('common.loading')}</p>
+					{/if}
+				</Card.Content>
+			</Card.Root>
+			<p class="mt-3 text-xs text-muted-foreground">{$t('settings.git.moreSoon')}</p>
 		</div>
-	</TabItem>
+	</Tabs.Content>
 
 	<!-- ========================= AI PROVIDERS ========================= -->
-	<TabItem title={$t('settings.tabs.aiProviders')}>
+	<Tabs.Content value="ai-providers" class="mt-2">
 		<div class="w-full">
-			<Card class="bg-gray-800 border-gray-700 max-w-none">
-				<Heading tag="h3" class="text-base mb-4">{$t('settings.ai.title')}</Heading>
-
-				{#if authStatus}
-					<div class="mb-3">
-						<Badge large color={authStatus.anthropic ? 'green' : 'dark'}>
-							{authStatus.anthropic === 'oauth'
-								? $t('settings.ai.badge.oauth')
-								: authStatus.anthropic === 'api_key'
-									? $t('settings.ai.badge.apiKey')
-									: $t('settings.ai.badge.notConfigured')}
-						</Badge>
-					</div>
-
-					<Helper class="mb-3">
-						{$t('settings.ai.helper')} <code class="rounded bg-gray-700 px-1 py-0.5">claude /token</code> {$t('settings.ai.helper.suffix')}
-						<a href="https://console.anthropic.com/" target="_blank" class="text-blue-400 hover:underline">{$t('settings.ai.helper.apiKey')}</a>.
-					</Helper>
-
-					{#if anthropicMessage}
-						<Alert color={anthropicError ? 'red' : 'green'} class="text-xs py-2 mb-2">{anthropicMessage}</Alert>
-					{/if}
-
-					<form onsubmit={(e) => { e.preventDefault(); handleSetAnthropic(); }} class="space-y-2">
-						<div class="flex gap-4 text-xs">
-							<Radio bind:group={anthropicKind} value="oauth" disabled={savingAnthropic}>{$t('settings.ai.kind.oauth')}</Radio>
-							<Radio bind:group={anthropicKind} value="api_key" disabled={savingAnthropic}>{$t('settings.ai.kind.apiKey')}</Radio>
+			<Card.Root>
+				<Card.Header>
+					<Card.Title>{$t('settings.ai.title')}</Card.Title>
+				</Card.Header>
+				<Card.Content>
+					{#if authStatus}
+						<div class="mb-3">
+							<Badge
+								variant={authStatus.anthropic ? 'outline' : 'secondary'}
+								class={authStatus.anthropic ? 'border-green-500/30 bg-green-500/15 text-green-600 dark:text-green-400' : ''}
+							>
+								{authStatus.anthropic === 'oauth'
+									? $t('settings.ai.badge.oauth')
+									: authStatus.anthropic === 'api_key'
+										? $t('settings.ai.badge.apiKey')
+										: $t('settings.ai.badge.notConfigured')}
+							</Badge>
 						</div>
-						<div>
-							<Label for="anth-token" class="text-xs mb-1">{$t('settings.git.token')}</Label>
-							<Input id="anth-token" type="password" bind:value={anthropicToken} placeholder={anthropicKind === 'oauth' ? 'sk-ant-oat01-...' : 'sk-ant-api03-...'} disabled={savingAnthropic} size="sm" />
-						</div>
-						<Button type="submit" color="blue" disabled={savingAnthropic || !anthropicToken.trim()} size="sm" class="w-full">
-							{savingAnthropic ? $t('common.saving') : $t('settings.ai.save')}
-						</Button>
-						{#if authStatus.anthropic}
-							<Button type="button" color="red" outline disabled={savingAnthropic} size="sm" class="w-full" onclick={handleRemoveAnthropic}>
-								{$t('settings.ai.remove')}
-							</Button>
+
+						<p class="text-xs text-muted-foreground mb-3">
+							{$t('settings.ai.helper')} <code class="rounded bg-muted px-1 py-0.5">claude /token</code> {$t('settings.ai.helper.suffix')}
+							<a href="https://console.anthropic.com/" target="_blank" class="text-primary hover:underline">{$t('settings.ai.helper.apiKey')}</a>.
+						</p>
+
+						{#if anthropicMessage}
+							{@render statusAlert(anthropicMessage, anthropicError, 'mb-2')}
 						{/if}
-					</form>
-				{:else}
-					<p class="text-sm text-gray-500">{$t('common.loading')}</p>
-				{/if}
-			</Card>
-			<Helper class="mt-3 text-xs">{$t('settings.ai.moreSoon')}</Helper>
+
+						<form onsubmit={(e) => { e.preventDefault(); handleSetAnthropic(); }} class="space-y-2">
+							<RadioGroup.Root
+								value={anthropicKind}
+								onValueChange={(v) => (anthropicKind = v as 'oauth' | 'api_key')}
+								disabled={savingAnthropic}
+								class="flex gap-4"
+							>
+								<div class="flex items-center gap-2">
+									<RadioGroup.Item value="oauth" id="anth-kind-oauth" />
+									<Label for="anth-kind-oauth" class="text-xs font-normal">{$t('settings.ai.kind.oauth')}</Label>
+								</div>
+								<div class="flex items-center gap-2">
+									<RadioGroup.Item value="api_key" id="anth-kind-api-key" />
+									<Label for="anth-kind-api-key" class="text-xs font-normal">{$t('settings.ai.kind.apiKey')}</Label>
+								</div>
+							</RadioGroup.Root>
+							<div>
+								<Label for="anth-token" class="text-xs mb-1">{$t('settings.git.token')}</Label>
+								<Input id="anth-token" type="password" bind:value={anthropicToken} placeholder={anthropicKind === 'oauth' ? 'sk-ant-oat01-...' : 'sk-ant-api03-...'} disabled={savingAnthropic} class="h-8" />
+							</div>
+							<Button type="submit" disabled={savingAnthropic || !anthropicToken.trim()} size="sm" class="w-full">
+								{savingAnthropic ? $t('common.saving') : $t('settings.ai.save')}
+							</Button>
+							{#if authStatus.anthropic}
+								<Button type="button" variant="destructive" disabled={savingAnthropic} size="sm" class="w-full" onclick={handleRemoveAnthropic}>
+									{$t('settings.ai.remove')}
+								</Button>
+							{/if}
+						</form>
+					{:else}
+						<p class="text-sm text-muted-foreground">{$t('common.loading')}</p>
+					{/if}
+				</Card.Content>
+			</Card.Root>
+			<p class="mt-3 text-xs text-muted-foreground">{$t('settings.ai.moreSoon')}</p>
 		</div>
-	</TabItem>
+	</Tabs.Content>
 
 	<!-- ============================ LICENSE ============================ -->
-	<TabItem title={$t('settings.tabs.license')}>
-		<Card class="bg-gray-800 border-gray-700 max-w-none">
-			<Heading tag="h3" class="text-base mb-4">{$t('settings.license.title')}</Heading>
+	<Tabs.Content value="license" class="mt-2">
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>{$t('settings.license.title')}</Card.Title>
+			</Card.Header>
+			<Card.Content>
+				{#if license}
+					<div class="flex items-center gap-3 mb-4">
+						<Badge
+							variant={license.is_pro ? 'outline' : 'secondary'}
+							class={license.is_pro ? 'border-green-500/30 bg-green-500/15 text-green-600 dark:text-green-400' : ''}
+						>{license.plan.toUpperCase()}</Badge>
+						{#if !license.is_pro}
+							<span class="text-sm text-muted-foreground">{$t('settings.license.free')}</span>
+						{/if}
+					</div>
 
-			{#if license}
-				<div class="flex items-center gap-3 mb-4">
-					<Badge large color={license.is_pro ? 'green' : 'dark'}>{license.plan.toUpperCase()}</Badge>
-					{#if !license.is_pro}
-						<span class="text-sm text-gray-400">{$t('settings.license.free')}</span>
-					{/if}
-				</div>
-
-				<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-					<div>
-						<h4 class="text-sm font-semibold text-gray-400 mb-2">{$t('settings.license.ossFeatures')}</h4>
-						<div class="flex flex-wrap gap-1">
-							{#each license.oss_features as f}
-								<Badge color="blue">{f}</Badge>
-							{/each}
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+						<div>
+							<h4 class="text-sm font-semibold text-muted-foreground mb-2">{$t('settings.license.ossFeatures')}</h4>
+							<div class="flex flex-wrap gap-1">
+								{#each license.oss_features as f}
+									<Badge variant="outline" class="bg-primary/15 text-primary">{f}</Badge>
+								{/each}
+							</div>
+						</div>
+						<div>
+							<h4 class="text-sm font-semibold text-muted-foreground mb-2">{$t('settings.license.proFeatures')}</h4>
+							<div class="space-y-1">
+								{#each license.features as f}
+									<div class="flex items-center justify-between text-sm">
+										<span class="text-foreground/90">{f.label}</span>
+										<Badge
+											variant={f.enabled ? 'outline' : 'secondary'}
+											class={f.enabled ? 'border-green-500/30 bg-green-500/15 text-green-600 dark:text-green-400' : ''}
+										>{f.enabled ? $t('settings.license.feature.active') : $t('settings.license.feature.locked')}</Badge>
+									</div>
+								{/each}
+							</div>
 						</div>
 					</div>
-					<div>
-						<h4 class="text-sm font-semibold text-gray-400 mb-2">{$t('settings.license.proFeatures')}</h4>
-						<div class="space-y-1">
-							{#each license.features as f}
-								<div class="flex items-center justify-between text-sm">
-									<span class="text-gray-300">{f.label}</span>
-									<Badge color={f.enabled ? 'green' : 'dark'}>{f.enabled ? $t('settings.license.feature.active') : $t('settings.license.feature.locked')}</Badge>
-								</div>
-							{/each}
-						</div>
+
+					<div class="border-t pt-3">
+						{#if activateMessage}
+							{@render statusAlert(activateMessage, activateError, 'mb-2')}
+						{/if}
+
+						<p class="text-xs text-muted-foreground mb-2">{license.is_pro ? $t('settings.license.update') : $t('settings.license.enter')}</p>
+						<form onsubmit={(e) => { e.preventDefault(); handleActivate(); }} class="flex gap-2">
+							<Input type="text" bind:value={licenseKey} placeholder="wshm-pro-xxxx-xxxx-xxxx" disabled={activating} class="h-8 flex-1" />
+							<Button type="submit" disabled={activating || !licenseKey.trim()} size="sm">
+								{activating ? $t('settings.license.activating') : $t('settings.license.activate')}
+							</Button>
+						</form>
+
+						{#if !license.is_pro}
+							<p class="text-xs text-muted-foreground mt-2">
+								<a href="https://wshm.dev/pro" target="_blank" class="text-primary hover:underline">{$t('settings.license.getLicense')}</a>
+							</p>
+						{/if}
 					</div>
-				</div>
-
-				<div class="border-t border-gray-700 pt-3">
-					{#if activateMessage}
-						<Alert color={activateError ? 'red' : 'green'} class="text-xs py-2 mb-2">{activateMessage}</Alert>
-					{/if}
-
-					<Helper class="mb-2">{license.is_pro ? $t('settings.license.update') : $t('settings.license.enter')}</Helper>
-					<form onsubmit={(e) => { e.preventDefault(); handleActivate(); }} class="flex gap-2">
-						<Input type="text" bind:value={licenseKey} placeholder="wshm-pro-xxxx-xxxx-xxxx" disabled={activating} size="sm" class="flex-1" />
-						<Button type="submit" color="blue" disabled={activating || !licenseKey.trim()} size="sm">
-							{activating ? $t('settings.license.activating') : $t('settings.license.activate')}
-						</Button>
-					</form>
-
-					{#if !license.is_pro}
-						<p class="text-xs text-gray-500 mt-2">
-							<a href="https://wshm.dev/pro" target="_blank" class="text-blue-400 hover:underline">{$t('settings.license.getLicense')}</a>
-						</p>
-					{/if}
-				</div>
-			{:else}
-				<p class="text-sm text-gray-500">{$t('common.loading')}</p>
-			{/if}
-		</Card>
-	</TabItem>
+				{:else}
+					<p class="text-sm text-muted-foreground">{$t('common.loading')}</p>
+				{/if}
+			</Card.Content>
+		</Card.Root>
+	</Tabs.Content>
 
 	<!-- ========================== APPEARANCE ========================== -->
-	<TabItem title={$t('settings.tabs.appearance')}>
-		<Card class="bg-gray-800 border-gray-700 max-w-none mb-4">
-			<div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-				<div>
-					<Heading tag="h3" class="text-base mb-3">{$t('settings.appearance.theme')}</Heading>
-					<div class="flex gap-2">
-						<Button size="xs" color={$theme === 'dark' ? 'blue' : 'alternative'} onclick={() => theme.set('dark')}>
-							{$t('settings.appearance.themeDark')}
-						</Button>
-						<Button size="xs" color={$theme === 'light' ? 'blue' : 'alternative'} onclick={() => theme.set('light')}>
-							{$t('settings.appearance.themeLight')}
-						</Button>
+	<Tabs.Content value="appearance" class="mt-2">
+		<Card.Root class="mb-4">
+			<Card.Content>
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+					<div>
+						<h3 class="text-base font-medium mb-3">{$t('settings.appearance.theme')}</h3>
+						<div class="flex gap-2">
+							<Button size="xs" variant={$theme === 'dark' ? 'default' : 'outline'} onclick={() => theme.set('dark')}>
+								{$t('settings.appearance.themeDark')}
+							</Button>
+							<Button size="xs" variant={$theme === 'light' ? 'default' : 'outline'} onclick={() => theme.set('light')}>
+								{$t('settings.appearance.themeLight')}
+							</Button>
+						</div>
+					</div>
+					<div>
+						<h3 class="text-base font-medium mb-3">{$t('settings.appearance.presets')}</h3>
+						<div class="flex gap-2 flex-wrap">
+							{#each Object.keys(colorPresets) as id}
+								<button
+									type="button"
+									class="flex items-center gap-2 px-3 py-1.5 rounded border bg-background text-xs text-foreground/90 hover:border-muted-foreground"
+									onclick={() => applyPreset(id)}
+								>
+									{$t(presetLabels[id])}
+									<span class="flex gap-0.5">
+										{#each ['critical', 'high', 'medium', 'feature'] as k}
+											<span class="w-2 h-2 rounded-full inline-block" style="background: {colorPresets[id][k]}"></span>
+										{/each}
+									</span>
+								</button>
+							{/each}
+						</div>
 					</div>
 				</div>
-				<div>
-					<Heading tag="h3" class="text-base mb-3">{$t('settings.appearance.presets')}</Heading>
-					<div class="flex gap-2 flex-wrap">
-						{#each Object.keys(colorPresets) as id}
-							<button
-								type="button"
-								class="flex items-center gap-2 px-3 py-1.5 rounded border border-gray-600 bg-gray-900 text-xs text-gray-300 hover:border-gray-400"
-								onclick={() => applyPreset(id)}
-							>
-								{$t(presetLabels[id])}
-								<span class="flex gap-0.5">
-									{#each ['critical', 'high', 'medium', 'feature'] as k}
-										<span class="w-2 h-2 rounded-full inline-block" style="background: {colorPresets[id][k]}"></span>
-									{/each}
-								</span>
-							</button>
-						{/each}
-					</div>
-				</div>
-			</div>
-		</Card>
+			</Card.Content>
+		</Card.Root>
 		<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-			<Card class="bg-gray-800 border-gray-700 max-w-none">
-				<Heading tag="h3" class="text-base mb-4">{$t('settings.appearance.colorScheme')}</Heading>
+			<Card.Root>
+				<Card.Header>
+					<Card.Title>{$t('settings.appearance.colorScheme')}</Card.Title>
+				</Card.Header>
+				<Card.Content>
+					<div class="mb-3 border-b pb-3">
+						<h4 class="text-xs font-semibold text-primary mb-2">{$t('settings.appearance.issuePrStatus')}</h4>
+						<div class="space-y-1.5">
+							{#each [['noPr', $t('settings.appearance.noPr')], ['hasPr', $t('settings.appearance.hasPr')], ['prReady', $t('settings.appearance.prReady')]] as [key, label]}
+								<label class="flex items-center gap-2">
+									<input type="color" bind:value={colors[key]} onchange={saveColors} class="w-6 h-5 rounded border bg-transparent cursor-pointer" />
+									<span class="text-xs text-foreground/90">{label}</span>
+									<span class="ml-auto text-[0.6rem] mono text-muted-foreground">{colors[key]}</span>
+								</label>
+							{/each}
+						</div>
+					</div>
 
-				<div class="mb-3 border-b border-gray-700 pb-3">
-					<h4 class="text-xs font-semibold text-blue-400 mb-2">{$t('settings.appearance.issuePrStatus')}</h4>
-					<div class="space-y-1.5">
-						{#each [['noPr', $t('settings.appearance.noPr')], ['hasPr', $t('settings.appearance.hasPr')], ['prReady', $t('settings.appearance.prReady')]] as [key, label]}
-							<label class="flex items-center gap-2">
-								<input type="color" bind:value={colors[key]} onchange={saveColors} class="w-6 h-5 rounded border border-gray-600 bg-transparent cursor-pointer" />
-								<span class="text-xs text-gray-300">{label}</span>
-								<span class="ml-auto text-[0.6rem] mono text-gray-600">{colors[key]}</span>
-							</label>
-						{/each}
+					<div class="mb-3 border-b pb-3">
+						<h4 class="text-xs font-semibold text-primary mb-2">{$t('settings.appearance.priority')}</h4>
+						<div class="space-y-1.5">
+							{#each [['critical', $t('settings.appearance.critical')], ['high', $t('settings.appearance.high')], ['medium', $t('settings.appearance.medium')], ['low', $t('settings.appearance.low')]] as [key, label]}
+								<label class="flex items-center gap-2">
+									<input type="color" bind:value={colors[key]} onchange={saveColors} class="w-6 h-5 rounded border bg-transparent cursor-pointer" />
+									<span class="text-xs text-foreground/90">{label}</span>
+									<span class="ml-auto text-[0.6rem] mono text-muted-foreground">{colors[key]}</span>
+								</label>
+							{/each}
+						</div>
 					</div>
-				</div>
 
-				<div class="mb-3 border-b border-gray-700 pb-3">
-					<h4 class="text-xs font-semibold text-blue-400 mb-2">{$t('settings.appearance.priority')}</h4>
-					<div class="space-y-1.5">
-						{#each [['critical', $t('settings.appearance.critical')], ['high', $t('settings.appearance.high')], ['medium', $t('settings.appearance.medium')], ['low', $t('settings.appearance.low')]] as [key, label]}
-							<label class="flex items-center gap-2">
-								<input type="color" bind:value={colors[key]} onchange={saveColors} class="w-6 h-5 rounded border border-gray-600 bg-transparent cursor-pointer" />
-								<span class="text-xs text-gray-300">{label}</span>
-								<span class="ml-auto text-[0.6rem] mono text-gray-600">{colors[key]}</span>
-							</label>
-						{/each}
+					<div class="mb-3 border-b pb-3">
+						<h4 class="text-xs font-semibold text-primary mb-2">{$t('settings.appearance.riskCategory')}</h4>
+						<div class="space-y-1.5">
+							{#each [['riskHigh', $t('settings.appearance.riskHigh')], ['riskMedium', $t('settings.appearance.riskMedium')], ['riskLow', $t('settings.appearance.riskLow')], ['bug', $t('settings.appearance.bug')], ['feature', $t('settings.appearance.feature')], ['docs', $t('settings.appearance.docs')]] as [key, label]}
+								<label class="flex items-center gap-2">
+									<input type="color" bind:value={colors[key]} onchange={saveColors} class="w-6 h-5 rounded border bg-transparent cursor-pointer" />
+									<span class="text-xs text-foreground/90">{label}</span>
+									<span class="ml-auto text-[0.6rem] mono text-muted-foreground">{colors[key]}</span>
+								</label>
+							{/each}
+						</div>
 					</div>
-				</div>
 
-				<div class="mb-3 border-b border-gray-700 pb-3">
-					<h4 class="text-xs font-semibold text-blue-400 mb-2">{$t('settings.appearance.riskCategory')}</h4>
-					<div class="space-y-1.5">
-						{#each [['riskHigh', $t('settings.appearance.riskHigh')], ['riskMedium', $t('settings.appearance.riskMedium')], ['riskLow', $t('settings.appearance.riskLow')], ['bug', $t('settings.appearance.bug')], ['feature', $t('settings.appearance.feature')], ['docs', $t('settings.appearance.docs')]] as [key, label]}
-							<label class="flex items-center gap-2">
-								<input type="color" bind:value={colors[key]} onchange={saveColors} class="w-6 h-5 rounded border border-gray-600 bg-transparent cursor-pointer" />
-								<span class="text-xs text-gray-300">{label}</span>
-								<span class="ml-auto text-[0.6rem] mono text-gray-600">{colors[key]}</span>
-							</label>
-						{/each}
-					</div>
-				</div>
+					<Button onclick={resetColors} variant="outline" size="xs">{$t('settings.appearance.reset')}</Button>
+				</Card.Content>
+			</Card.Root>
 
-				<Button onclick={resetColors} color="alternative" size="xs">{$t('settings.appearance.reset')}</Button>
-			</Card>
-
-			<Card class="bg-gray-800 border-gray-700 max-w-none">
-				<Heading tag="h3" class="text-base mb-4">{$t('settings.appearance.legend')}</Heading>
-				<div class="grid grid-cols-2 gap-4 text-xs text-gray-300">
-					<div>
-						<h4 class="text-gray-500 mb-1 text-[0.6rem] uppercase">{$t('settings.appearance.legend.prStatus')}</h4>
-						{#each [['noPr', $t('settings.appearance.noPr')], ['hasPr', $t('settings.appearance.hasPr')], ['prReady', $t('settings.appearance.prReady')]] as [key, label]}
-							<div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded inline-block" style="background: {colors[key]}"></span> {label}</div>
-						{/each}
+			<Card.Root>
+				<Card.Header>
+					<Card.Title>{$t('settings.appearance.legend')}</Card.Title>
+				</Card.Header>
+				<Card.Content>
+					<div class="grid grid-cols-2 gap-4 text-xs text-foreground/90">
+						<div>
+							<h4 class="text-muted-foreground mb-1 text-[0.6rem] uppercase">{$t('settings.appearance.legend.prStatus')}</h4>
+							{#each [['noPr', $t('settings.appearance.noPr')], ['hasPr', $t('settings.appearance.hasPr')], ['prReady', $t('settings.appearance.prReady')]] as [key, label]}
+								<div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded inline-block" style="background: {colors[key]}"></span> {label}</div>
+							{/each}
+						</div>
+						<div>
+							<h4 class="text-muted-foreground mb-1 text-[0.6rem] uppercase">{$t('settings.appearance.legend.priority')}</h4>
+							{#each [['critical', $t('settings.appearance.critical')], ['high', $t('settings.appearance.high')], ['medium', $t('settings.appearance.medium')], ['low', $t('settings.appearance.low')]] as [key, label]}
+								<div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded inline-block" style="background: {colors[key]}"></span> {label}</div>
+							{/each}
+						</div>
+						<div>
+							<h4 class="text-muted-foreground mb-1 text-[0.6rem] uppercase">{$t('settings.appearance.legend.risk')}</h4>
+							{#each [['riskHigh', $t('settings.appearance.high')], ['riskMedium', $t('settings.appearance.medium')], ['riskLow', $t('settings.appearance.low')]] as [key, label]}
+								<div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded inline-block" style="background: {colors[key]}"></span> {label}</div>
+							{/each}
+						</div>
+						<div>
+							<h4 class="text-muted-foreground mb-1 text-[0.6rem] uppercase">{$t('settings.appearance.legend.category')}</h4>
+							{#each [['bug', $t('settings.appearance.bug')], ['feature', $t('settings.appearance.feature')], ['docs', $t('settings.appearance.docs')]] as [key, label]}
+								<div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded inline-block" style="background: {colors[key]}"></span> {label}</div>
+							{/each}
+						</div>
 					</div>
-					<div>
-						<h4 class="text-gray-500 mb-1 text-[0.6rem] uppercase">{$t('settings.appearance.legend.priority')}</h4>
-						{#each [['critical', $t('settings.appearance.critical')], ['high', $t('settings.appearance.high')], ['medium', $t('settings.appearance.medium')], ['low', $t('settings.appearance.low')]] as [key, label]}
-							<div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded inline-block" style="background: {colors[key]}"></span> {label}</div>
-						{/each}
-					</div>
-					<div>
-						<h4 class="text-gray-500 mb-1 text-[0.6rem] uppercase">{$t('settings.appearance.legend.risk')}</h4>
-						{#each [['riskHigh', $t('settings.appearance.high')], ['riskMedium', $t('settings.appearance.medium')], ['riskLow', $t('settings.appearance.low')]] as [key, label]}
-							<div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded inline-block" style="background: {colors[key]}"></span> {label}</div>
-						{/each}
-					</div>
-					<div>
-						<h4 class="text-gray-500 mb-1 text-[0.6rem] uppercase">{$t('settings.appearance.legend.category')}</h4>
-						{#each [['bug', $t('settings.appearance.bug')], ['feature', $t('settings.appearance.feature')], ['docs', $t('settings.appearance.docs')]] as [key, label]}
-							<div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded inline-block" style="background: {colors[key]}"></span> {label}</div>
-						{/each}
-					</div>
-				</div>
-			</Card>
+				</Card.Content>
+			</Card.Root>
 		</div>
-	</TabItem>
+	</Tabs.Content>
 
 	<!-- ========================= CONFIGURATION ========================= -->
-	<TabItem title={$t('settings.tabs.configuration')}>
-		<Card class="bg-gray-800 border-gray-700 max-w-none">
-			<Heading tag="h3" class="text-base mb-4">{$t('settings.config.title')}</Heading>
-			<Helper class="mb-4">
-				{$t('settings.config.helper.prefix')} <code class="rounded bg-gray-700 px-1 py-0.5">.wshm/config.toml</code>{$t('settings.config.helper.suffix')}
-			</Helper>
-
-			<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-				{#each [
-					[$t('settings.config.section.triage'), [['Enabled', 'true'], ['Auto-fix', 'false'], ['Confidence', '0.85']]],
-					[$t('settings.config.section.prAnalysis'), [['Enabled', 'true'], ['Auto-label', 'true'], ['Risk labels', 'true']]],
-					[$t('settings.config.section.mergeQueue'), [['Threshold', '15'], ['Strategy', 'rebase']]],
-					[$t('settings.config.section.sync'), [['Interval', '5 min'], ['Full sync', '24h']]]
-				] as [section, items]}
-					<div class="border border-gray-700 rounded p-3">
-						<h4 class="text-xs font-semibold text-blue-400 mb-2">{section}</h4>
-						<dl class="grid grid-cols-[120px_1fr] gap-x-2 gap-y-0.5">
-							{#each items as [key, val]}
-								<dt class="text-xs text-gray-500">{key}</dt>
-								<dd class="text-xs text-gray-300 mono">{val}</dd>
-							{/each}
-						</dl>
-					</div>
-				{/each}
-			</div>
-		</Card>
-	</TabItem>
+	<Tabs.Content value="configuration" class="mt-2">
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>{$t('settings.config.title')}</Card.Title>
+				<Card.Description class="text-xs">
+					{$t('settings.config.helper.prefix')} <code class="rounded bg-muted px-1 py-0.5">.wshm/config.toml</code>{$t('settings.config.helper.suffix')}
+				</Card.Description>
+			</Card.Header>
+			<Card.Content>
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+					{#each [
+						[$t('settings.config.section.triage'), [['Enabled', 'true'], ['Auto-fix', 'false'], ['Confidence', '0.85']]],
+						[$t('settings.config.section.prAnalysis'), [['Enabled', 'true'], ['Auto-label', 'true'], ['Risk labels', 'true']]],
+						[$t('settings.config.section.mergeQueue'), [['Threshold', '15'], ['Strategy', 'rebase']]],
+						[$t('settings.config.section.sync'), [['Interval', '5 min'], ['Full sync', '24h']]]
+					] as [section, items]}
+						<div class="border rounded p-3">
+							<h4 class="text-xs font-semibold text-primary mb-2">{section}</h4>
+							<dl class="grid grid-cols-[120px_1fr] gap-x-2 gap-y-0.5">
+								{#each items as [key, val]}
+									<dt class="text-xs text-muted-foreground">{key}</dt>
+									<dd class="text-xs text-foreground/90 mono">{val}</dd>
+								{/each}
+							</dl>
+						</div>
+					{/each}
+				</div>
+			</Card.Content>
+		</Card.Root>
+	</Tabs.Content>
 
 	<!-- ========================= RELIABILITY ========================= -->
-	<TabItem title={$t('settings.tabs.reliability')}>
+	<Tabs.Content value="reliability" class="mt-2">
 		<div class="w-full">
-			<Card class="bg-gray-800 border-gray-700 max-w-none">
-				<Heading tag="h3" class="text-base mb-1">{$t('settings.retry.title')}</Heading>
-				<Helper class="mb-4">{$t('settings.retry.helper')}</Helper>
+			<Card.Root>
+				<Card.Header>
+					<Card.Title>{$t('settings.retry.title')}</Card.Title>
+					<Card.Description class="text-xs">{$t('settings.retry.helper')}</Card.Description>
+				</Card.Header>
+				<Card.Content>
+					{#if retrySettings}
+						{#if retryMessage}
+							{@render statusAlert(retryMessage, retryError, 'mb-3')}
+						{/if}
 
-				{#if retrySettings}
-					{#if retryMessage}
-						<Alert color={retryError ? 'red' : 'green'} class="text-xs py-2 mb-3">{retryMessage}</Alert>
+						<form onsubmit={(e) => { e.preventDefault(); handleSaveRetry(); }} class="space-y-4 max-w-md">
+							<div class="flex items-center justify-between">
+								<Label for="retry-enabled" class="text-xs">{$t('settings.retry.enabled')}</Label>
+								<Switch id="retry-enabled" bind:checked={retrySettings.enabled} disabled={savingRetry} />
+							</div>
+
+							<div>
+								<Label for="retry-attempts" class="text-xs mb-1">{$t('settings.retry.maxAttempts')}</Label>
+								<Input id="retry-attempts" type="number" min="1" max="10" bind:value={retrySettings.max_attempts} disabled={savingRetry || !retrySettings.enabled} class="h-8" />
+								<p class="text-xs text-muted-foreground mt-1">{$t('settings.retry.maxAttemptsHelp')}</p>
+							</div>
+
+							<div>
+								<Label for="retry-initial" class="text-xs mb-1">{$t('settings.retry.initialBackoff')}</Label>
+								<Input id="retry-initial" type="number" min="50" max="60000" step="50" bind:value={retrySettings.initial_backoff_ms} disabled={savingRetry || !retrySettings.enabled} class="h-8" />
+								<p class="text-xs text-muted-foreground mt-1">{$t('settings.retry.initialBackoffHelp')}</p>
+							</div>
+
+							<div>
+								<Label for="retry-max" class="text-xs mb-1">{$t('settings.retry.maxBackoff')}</Label>
+								<Input id="retry-max" type="number" min="50" max="120000" step="100" bind:value={retrySettings.max_backoff_ms} disabled={savingRetry || !retrySettings.enabled} class="h-8" />
+								<p class="text-xs text-muted-foreground mt-1">{$t('settings.retry.maxBackoffHelp')}</p>
+							</div>
+
+							<Button type="submit" disabled={savingRetry} size="sm" class="w-full">
+								{savingRetry ? $t('common.saving') : $t('settings.retry.save')}
+							</Button>
+						</form>
+					{:else}
+						<p class="text-sm text-muted-foreground">{$t('common.loading')}</p>
 					{/if}
-
-					<form onsubmit={(e) => { e.preventDefault(); handleSaveRetry(); }} class="space-y-4 max-w-md">
-						<div class="flex items-center justify-between">
-							<Label class="text-xs">{$t('settings.retry.enabled')}</Label>
-							<Toggle bind:checked={retrySettings.enabled} disabled={savingRetry} />
-						</div>
-
-						<div>
-							<Label for="retry-attempts" class="text-xs mb-1">{$t('settings.retry.maxAttempts')}</Label>
-							<Input id="retry-attempts" type="number" min="1" max="10" bind:value={retrySettings.max_attempts} disabled={savingRetry || !retrySettings.enabled} size="sm" />
-							<Helper class="text-xs mt-1">{$t('settings.retry.maxAttemptsHelp')}</Helper>
-						</div>
-
-						<div>
-							<Label for="retry-initial" class="text-xs mb-1">{$t('settings.retry.initialBackoff')}</Label>
-							<Input id="retry-initial" type="number" min="50" max="60000" step="50" bind:value={retrySettings.initial_backoff_ms} disabled={savingRetry || !retrySettings.enabled} size="sm" />
-							<Helper class="text-xs mt-1">{$t('settings.retry.initialBackoffHelp')}</Helper>
-						</div>
-
-						<div>
-							<Label for="retry-max" class="text-xs mb-1">{$t('settings.retry.maxBackoff')}</Label>
-							<Input id="retry-max" type="number" min="50" max="120000" step="100" bind:value={retrySettings.max_backoff_ms} disabled={savingRetry || !retrySettings.enabled} size="sm" />
-							<Helper class="text-xs mt-1">{$t('settings.retry.maxBackoffHelp')}</Helper>
-						</div>
-
-						<Button type="submit" color="blue" disabled={savingRetry} size="sm" class="w-full">
-							{savingRetry ? $t('common.saving') : $t('settings.retry.save')}
-						</Button>
-					</form>
-				{:else}
-					<p class="text-sm text-gray-500">{$t('common.loading')}</p>
-				{/if}
-			</Card>
+				</Card.Content>
+			</Card.Root>
 		</div>
-	</TabItem>
+	</Tabs.Content>
 
 	<!-- ========================= SECRETS ============================ -->
-	<TabItem title={$t('settings.tabs.secrets')}>
+	<Tabs.Content value="secrets" class="mt-2">
 		<!-- Disambiguation banner: this tab is for advanced / per-repo
 		     secrets. Common GitHub / Anthropic tokens belong in their
 		     dedicated tabs. -->
-		<Alert color="blue" class="mb-4 text-sm">
-			<span class="font-semibold">{$t('settings.secrets.banner.title')}</span>
-			{$t('settings.secrets.banner.body')}
-		</Alert>
+		<Alert.Root class="mb-4 border-primary/30 bg-primary/10 text-primary">
+			<Alert.Description class="text-sm text-primary/90">
+				<span class="font-semibold text-primary">{$t('settings.secrets.banner.title')}</span>
+				{$t('settings.secrets.banner.body')}
+			</Alert.Description>
+		</Alert.Root>
 
 		<!-- Doc / how-to: create a github_token. Toggleable so admins
 		     who already know the drill don't see it every visit. -->
-		<details class="mb-4 rounded border border-gray-700 bg-gray-800/60 open:bg-gray-800">
-			<summary class="cursor-pointer px-4 py-3 text-sm font-semibold text-blue-300 hover:text-blue-200">
+		<details class="mb-4 rounded border bg-card/60 open:bg-card">
+			<summary class="cursor-pointer px-4 py-3 text-sm font-semibold text-primary hover:text-primary/80">
 				ℹ️ {translate('secrets.help.title')}
 			</summary>
-			<div class="px-4 pb-4 pt-1 text-sm text-gray-300 space-y-2">
+			<div class="px-4 pb-4 pt-1 text-sm text-foreground/90 space-y-2">
 				<p>{translate('secrets.help.intro')}</p>
 				<ol class="list-decimal list-inside space-y-1 ms-2">
 					<li>{translate('secrets.help.step1')}</li>
@@ -944,14 +1018,14 @@
 					<li>{translate('secrets.help.step3')}</li>
 					<li>{translate('secrets.help.step4')}</li>
 				</ol>
-				<p class="text-xs text-gray-400 italic">
+				<p class="text-xs text-muted-foreground italic">
 					💡 {translate('secrets.help.tip')}
 				</p>
 				<a
 					href="https://github.com/settings/tokens"
 					target="_blank"
 					rel="noopener noreferrer"
-					class="inline-block mt-1 text-blue-400 hover:text-blue-300 underline text-xs"
+					class="inline-block mt-1 text-primary hover:text-primary/80 underline text-xs"
 				>
 					→ {translate('secrets.help.link')}
 				</a>
@@ -960,596 +1034,652 @@
 
 		<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 			<!-- Stored secrets list -->
-			<Card class="bg-gray-800 border-gray-700 max-w-none">
-				<Heading tag="h3" class="text-base mb-4">{$t('settings.secrets.stored')}</Heading>
-				<Helper class="mb-3">
-					{$t('settings.secrets.encrypted')}
-				</Helper>
-				{#if secretsError}
-					<Alert color="red" class="text-xs py-2 mb-2">{secretsError}</Alert>
-				{/if}
-				{#if secrets.length === 0}
-					<p class="text-sm text-gray-500">{$t('settings.secrets.none')}</p>
-				{:else}
-					<Table hoverable={true} class="text-xs">
-						<TableHead>
-							<TableHeadCell>{$t('settings.secrets.col.scope')}</TableHeadCell>
-							<TableHeadCell>{$t('settings.secrets.col.key')}</TableHeadCell>
-							<TableHeadCell>{$t('settings.secrets.col.value')}</TableHeadCell>
-							<TableHeadCell>{$t('settings.secrets.col.updated')}</TableHeadCell>
-							<TableHeadCell><span class="sr-only">{$t('settings.secrets.actions')}</span></TableHeadCell>
-						</TableHead>
-						<TableBody>
-							{#each secrets as s (s.id)}
-								<TableBodyRow>
-									<TableBodyCell>
-										<Badge color={s.scope === 'global' ? 'blue' : 'green'}>
-											{s.scope}{s.slug ? `: ${s.slug}` : ''}
-										</Badge>
-									</TableBodyCell>
-									<TableBodyCell class="mono text-gray-200">{s.key}</TableBodyCell>
-									<TableBodyCell class="mono text-gray-300">
-										{revealedId === s.id && revealedValue ? revealedValue : '••••••••'}
-									</TableBodyCell>
-									<TableBodyCell class="text-gray-500">
-										{new Date(s.updated_at).toLocaleString()}
-									</TableBodyCell>
-									<TableBodyCell class="text-right whitespace-nowrap">
-										<Button color="alternative" size="xs" onclick={() => handleReveal(s.id)}>
-											{revealedId === s.id ? $t('settings.secrets.hide') : $t('settings.secrets.reveal')}
-										</Button>
-										<Button color="red" size="xs" onclick={() => handleDeleteSecret(s.id)}>
-											{$t('common.delete')}
-										</Button>
-									</TableBodyCell>
-								</TableBodyRow>
-							{/each}
-						</TableBody>
-					</Table>
-				{/if}
-			</Card>
+			<Card.Root>
+				<Card.Header>
+					<Card.Title>{$t('settings.secrets.stored')}</Card.Title>
+					<Card.Description class="text-xs">
+						{$t('settings.secrets.encrypted')}
+					</Card.Description>
+				</Card.Header>
+				<Card.Content>
+					{#if secretsError}
+						{@render statusAlert(secretsError, true, 'mb-2')}
+					{/if}
+					{#if secrets.length === 0}
+						<p class="text-sm text-muted-foreground">{$t('settings.secrets.none')}</p>
+					{:else}
+						<Table.Root class="text-xs">
+							<Table.Header>
+								<Table.Row>
+									<Table.Head>{$t('settings.secrets.col.scope')}</Table.Head>
+									<Table.Head>{$t('settings.secrets.col.key')}</Table.Head>
+									<Table.Head>{$t('settings.secrets.col.value')}</Table.Head>
+									<Table.Head>{$t('settings.secrets.col.updated')}</Table.Head>
+									<Table.Head><span class="sr-only">{$t('settings.secrets.actions')}</span></Table.Head>
+								</Table.Row>
+							</Table.Header>
+							<Table.Body>
+								{#each secrets as s (s.id)}
+									<Table.Row>
+										<Table.Cell>
+											<Badge
+												variant="outline"
+												class={s.scope === 'global' ? 'bg-primary/15 text-primary' : 'border-green-500/30 bg-green-500/15 text-green-600 dark:text-green-400'}
+											>
+												{s.scope}{s.slug ? `: ${s.slug}` : ''}
+											</Badge>
+										</Table.Cell>
+										<Table.Cell class="mono text-foreground">{s.key}</Table.Cell>
+										<Table.Cell class="mono text-foreground/90">
+											{revealedId === s.id && revealedValue ? revealedValue : '••••••••'}
+										</Table.Cell>
+										<Table.Cell class="text-muted-foreground">
+											{new Date(s.updated_at).toLocaleString()}
+										</Table.Cell>
+										<Table.Cell class="text-right whitespace-nowrap">
+											<Button variant="outline" size="xs" onclick={() => handleReveal(s.id)}>
+												{revealedId === s.id ? $t('settings.secrets.hide') : $t('settings.secrets.reveal')}
+											</Button>
+											<Button variant="destructive" size="xs" onclick={() => handleDeleteSecret(s.id)}>
+												{$t('common.delete')}
+											</Button>
+										</Table.Cell>
+									</Table.Row>
+								{/each}
+							</Table.Body>
+						</Table.Root>
+					{/if}
+				</Card.Content>
+			</Card.Root>
 
 			<!-- Add new secret -->
-			<Card class="bg-gray-800 border-gray-700 max-w-none">
-				<Heading tag="h3" class="text-base mb-4">{$t('settings.secrets.add')}</Heading>
-				{#if secretMessage}
-					<Alert color={secretMessageErr ? 'red' : 'green'} class="text-xs py-2 mb-2">
-						{secretMessage}
-					</Alert>
-				{/if}
-				<form onsubmit={(e) => { e.preventDefault(); handleAddSecret(); }} class="space-y-3">
-					<div>
-						<Label class="text-xs mb-1">{$t('settings.secrets.scope')}</Label>
-						<div class="flex gap-3 text-sm">
-							<Radio bind:group={newSecretScope} value="global">{$t('settings.secrets.scope.global')}</Radio>
-							<Radio bind:group={newSecretScope} value="repo">{$t('settings.secrets.scope.repo')}</Radio>
-						</div>
-					</div>
-					{#if newSecretScope === 'repo'}
-						<div>
-							<Label for="sec-slug" class="text-xs mb-1">{$t('settings.secrets.repoSlug')}</Label>
-							<Input id="sec-slug" type="text" bind:value={newSecretSlug}
-								placeholder="owner/repo" disabled={savingSecret} size="sm" />
-						</div>
+			<Card.Root>
+				<Card.Header>
+					<Card.Title>{$t('settings.secrets.add')}</Card.Title>
+				</Card.Header>
+				<Card.Content>
+					{#if secretMessage}
+						{@render statusAlert(secretMessage, secretMessageErr, 'mb-2')}
 					{/if}
-					<div>
-						<Label for="sec-key" class="text-xs mb-1">{$t('settings.secrets.key')}</Label>
-						<Input id="sec-key" type="text" bind:value={newSecretKey}
-							placeholder="github_token, anthropic_api_key, …"
-							disabled={savingSecret} size="sm" />
-						<Helper class="text-xs mt-1">
-							{$t('settings.secrets.commonKeys')} <code>github_token</code>, <code>anthropic_oauth_token</code>,
-							<code>anthropic_api_key</code>.
-						</Helper>
-					</div>
-					<div>
-						<Label for="sec-value" class="text-xs mb-1">{$t('settings.secrets.value')}</Label>
-						<Input id="sec-value" type="password" bind:value={newSecretValue}
-							placeholder="paste secret value" disabled={savingSecret} size="sm" />
-					</div>
-					<Button type="submit" color="blue" size="sm" class="w-full"
-						disabled={savingSecret || !newSecretKey.trim() || !newSecretValue
-							|| (newSecretScope === 'repo' && !newSecretSlug.trim())}>
-						{savingSecret ? $t('common.saving') : $t('settings.secrets.save')}
-					</Button>
-				</form>
-			</Card>
+					<form onsubmit={(e) => { e.preventDefault(); handleAddSecret(); }} class="space-y-3">
+						<div>
+							<Label class="text-xs mb-1">{$t('settings.secrets.scope')}</Label>
+							<RadioGroup.Root
+								value={newSecretScope}
+								onValueChange={(v) => (newSecretScope = v as 'global' | 'repo')}
+								class="flex gap-3"
+							>
+								<div class="flex items-center gap-2">
+									<RadioGroup.Item value="global" id="sec-scope-global" />
+									<Label for="sec-scope-global" class="text-sm font-normal">{$t('settings.secrets.scope.global')}</Label>
+								</div>
+								<div class="flex items-center gap-2">
+									<RadioGroup.Item value="repo" id="sec-scope-repo" />
+									<Label for="sec-scope-repo" class="text-sm font-normal">{$t('settings.secrets.scope.repo')}</Label>
+								</div>
+							</RadioGroup.Root>
+						</div>
+						{#if newSecretScope === 'repo'}
+							<div>
+								<Label for="sec-slug" class="text-xs mb-1">{$t('settings.secrets.repoSlug')}</Label>
+								<Input id="sec-slug" type="text" bind:value={newSecretSlug}
+									placeholder="owner/repo" disabled={savingSecret} class="h-8" />
+							</div>
+						{/if}
+						<div>
+							<Label for="sec-key" class="text-xs mb-1">{$t('settings.secrets.key')}</Label>
+							<Input id="sec-key" type="text" bind:value={newSecretKey}
+								placeholder="github_token, anthropic_api_key, …"
+								disabled={savingSecret} class="h-8" />
+							<p class="text-xs text-muted-foreground mt-1">
+								{$t('settings.secrets.commonKeys')} <code>github_token</code>, <code>anthropic_oauth_token</code>,
+								<code>anthropic_api_key</code>.
+							</p>
+						</div>
+						<div>
+							<Label for="sec-value" class="text-xs mb-1">{$t('settings.secrets.value')}</Label>
+							<Input id="sec-value" type="password" bind:value={newSecretValue}
+								placeholder="paste secret value" disabled={savingSecret} class="h-8" />
+						</div>
+						<Button type="submit" size="sm" class="w-full"
+							disabled={savingSecret || !newSecretKey.trim() || !newSecretValue
+								|| (newSecretScope === 'repo' && !newSecretSlug.trim())}>
+							{savingSecret ? $t('common.saving') : $t('settings.secrets.save')}
+						</Button>
+					</form>
+				</Card.Content>
+			</Card.Root>
 		</div>
-	</TabItem>
+	</Tabs.Content>
 
 	<!-- ========================= USERS (RBAC) ========================= -->
-	<TabItem title={$t('settings.tabs.users')}>
-		<Card class="bg-gray-800 border-gray-700 max-w-none">
-			<div class="flex items-start justify-between mb-4 gap-3">
-				<div>
-					<Heading tag="h3" class="text-base">{$t('settings.users.title')}</Heading>
-					<Helper class="mt-1">
-						{$t('settings.users.helper')}
-					</Helper>
-				</div>
-				<Button color="blue" size="sm" onclick={openCreateUser} class="shrink-0">
-					{$t('settings.users.addUser')}
-				</Button>
-			</div>
-			{#if usersError}
-				<Alert color="red" class="text-xs py-2 mb-2">{usersError}</Alert>
-			{/if}
-			{#if userMessage}
-				<Alert color={userMessageErr ? 'red' : 'green'} class="text-xs py-2 mb-2">
-					{userMessage}
-				</Alert>
-			{/if}
-			{#if users.length === 0}
-				<p class="text-sm text-gray-500">{$t('settings.users.none')}</p>
-			{:else}
-				<Table hoverable={true} class="text-xs">
-					<TableHead>
-						<TableHeadCell>{$t('settings.users.col.identity')}</TableHeadCell>
-						<TableHeadCell>{$t('settings.users.col.auth')}</TableHeadCell>
-						<TableHeadCell>{$t('settings.users.col.role')}</TableHeadCell>
-						<TableHeadCell>{$t('settings.users.col.lastLogin')}</TableHeadCell>
-						<TableHeadCell><span class="sr-only">{$t('settings.secrets.actions')}</span></TableHeadCell>
-					</TableHead>
-					<TableBody>
-						{#each users as u (u.id)}
-							<TableBodyRow>
-								<TableBodyCell>
-									<div class="mono text-gray-200">{u.email}</div>
-									{#if u.username && u.username !== u.email}
-										<div class="text-[0.65rem] text-gray-500">@{u.username}</div>
-									{/if}
-								</TableBodyCell>
-								<TableBodyCell>
-									<Badge color={u.sso_provider ? 'purple' : 'blue'}>
-										{u.sso_provider ?? 'local'}
-									</Badge>
-								</TableBodyCell>
-								<TableBodyCell>
-									<Badge color={u.role === 'admin' ? 'red' : u.role === 'operator' ? 'orange' : u.role === 'member' ? 'blue' : 'gray'}>
-										{u.role}
-									</Badge>
-								</TableBodyCell>
-								<TableBodyCell class="text-gray-500">
-									{u.last_login_at ? new Date(u.last_login_at).toLocaleString() : '—'}
-								</TableBodyCell>
-								<TableBodyCell class="text-right whitespace-nowrap">
-									<Button color="alternative" size="xs" onclick={() => openEditUser(u)}>
-										{$t('common.edit')}
-									</Button>
-									<Button color="red" size="xs" onclick={() => openDeleteUser(u)}>
-										{$t('common.delete')}
-									</Button>
-								</TableBodyCell>
-							</TableBodyRow>
-						{/each}
-					</TableBody>
-				</Table>
-			{/if}
-		</Card>
-	</TabItem>
-</Tabs>
+	<Tabs.Content value="users" class="mt-2">
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>{$t('settings.users.title')}</Card.Title>
+				<Card.Description class="text-xs">
+					{$t('settings.users.helper')}
+				</Card.Description>
+				<Card.Action>
+					<Button size="sm" onclick={openCreateUser} class="shrink-0">
+						{$t('settings.users.addUser')}
+					</Button>
+				</Card.Action>
+			</Card.Header>
+			<Card.Content>
+				{#if usersError}
+					{@render statusAlert(usersError, true, 'mb-2')}
+				{/if}
+				{#if userMessage}
+					{@render statusAlert(userMessage, userMessageErr, 'mb-2')}
+				{/if}
+				{#if users.length === 0}
+					<p class="text-sm text-muted-foreground">{$t('settings.users.none')}</p>
+				{:else}
+					<Table.Root class="text-xs">
+						<Table.Header>
+							<Table.Row>
+								<Table.Head>{$t('settings.users.col.identity')}</Table.Head>
+								<Table.Head>{$t('settings.users.col.auth')}</Table.Head>
+								<Table.Head>{$t('settings.users.col.role')}</Table.Head>
+								<Table.Head>{$t('settings.users.col.lastLogin')}</Table.Head>
+								<Table.Head><span class="sr-only">{$t('settings.secrets.actions')}</span></Table.Head>
+							</Table.Row>
+						</Table.Header>
+						<Table.Body>
+							{#each users as u (u.id)}
+								<Table.Row>
+									<Table.Cell>
+										<div class="mono text-foreground">{u.email}</div>
+										{#if u.username && u.username !== u.email}
+											<div class="text-[0.65rem] text-muted-foreground">@{u.username}</div>
+										{/if}
+									</Table.Cell>
+									<Table.Cell>
+										<Badge
+											variant="outline"
+											class={u.sso_provider
+												? 'border-purple-500/30 bg-purple-500/15 text-purple-600 dark:text-purple-400'
+												: 'bg-primary/15 text-primary'}
+										>
+											{u.sso_provider ?? 'local'}
+										</Badge>
+									</Table.Cell>
+									<Table.Cell>
+										<Badge
+											variant={u.role === 'admin' || u.role === 'operator' || u.role === 'member' ? 'outline' : 'secondary'}
+											class={u.role === 'admin'
+												? 'border-red-500/30 bg-red-500/15 text-red-600 dark:text-red-400'
+												: u.role === 'operator'
+													? 'border-orange-500/30 bg-orange-500/15 text-orange-600 dark:text-orange-400'
+													: u.role === 'member'
+														? 'bg-primary/15 text-primary'
+														: ''}
+										>
+											{u.role}
+										</Badge>
+									</Table.Cell>
+									<Table.Cell class="text-muted-foreground">
+										{u.last_login_at ? new Date(u.last_login_at).toLocaleString() : '—'}
+									</Table.Cell>
+									<Table.Cell class="text-right whitespace-nowrap">
+										<Button variant="outline" size="xs" onclick={() => openEditUser(u)}>
+											{$t('common.edit')}
+										</Button>
+										<Button variant="destructive" size="xs" onclick={() => openDeleteUser(u)}>
+											{$t('common.delete')}
+										</Button>
+									</Table.Cell>
+								</Table.Row>
+							{/each}
+						</Table.Body>
+					</Table.Root>
+				{/if}
+			</Card.Content>
+		</Card.Root>
+	</Tabs.Content>
+</Tabs.Root>
 
 <!-- Create user modal -->
-<Modal
-	bind:open={createUserModalOpen}
-	title={$t('settings.users.modal.create.title')}
-	size="md"
-	dismissable
-	class="bg-gray-900 border-gray-700"
-	bodyClass="text-gray-200"
->
-	<form onsubmit={(e) => { e.preventDefault(); handleCreateUser(); }} class="space-y-3">
-		<div>
-			<Label for="user-email" class="text-xs mb-1">{$t('settings.users.email')}</Label>
-			<Input id="user-email" type="text" bind:value={newUserEmail}
-				placeholder="alice@example.com or alice" disabled={creatingUser} size="sm" />
-		</div>
-		<div>
-			<Label for="user-username" class="text-xs mb-1">{$t('settings.users.username')}</Label>
-			<Input id="user-username" type="text" bind:value={newUserUsername}
-				placeholder="alice" disabled={creatingUser} size="sm" />
-		</div>
-		<div>
-			<Label for="user-password" class="text-xs mb-1">{$t('settings.users.password')}</Label>
-			<Input id="user-password" type="password" bind:value={newUserPassword}
-				placeholder={$t('settings.users.password.placeholder')} disabled={creatingUser} size="sm" />
-		</div>
-		<div>
-			<Label class="text-xs mb-1">{$t('settings.users.role')}</Label>
-			<div class="flex flex-col gap-1 text-sm">
-				<Radio bind:group={newUserRole} value="admin">
-					<span class="font-semibold">{$t('settings.users.role.admin')}</span>
-					<span class="text-xs text-gray-500 ml-1">{$t('settings.users.role.admin.help')}</span>
-				</Radio>
-				<Radio bind:group={newUserRole} value="operator">
-					<span class="font-semibold">{$t('settings.users.role.operator')}</span>
-					<span class="text-xs text-gray-500 ml-1">{$t('settings.users.role.operator.help')}</span>
-				</Radio>
-				<Radio bind:group={newUserRole} value="member">
-					<span class="font-semibold">{$t('settings.users.role.member')}</span>
-					<span class="text-xs text-gray-500 ml-1">{$t('settings.users.role.member.help')}</span>
-				</Radio>
-				<Radio bind:group={newUserRole} value="viewer">
-					<span class="font-semibold">{$t('settings.users.role.viewer')}</span>
-					<span class="text-xs text-gray-500 ml-1">{$t('settings.users.role.viewer.help')}</span>
-				</Radio>
+<Dialog.Root bind:open={createUserModalOpen}>
+	<Dialog.Content class="sm:max-w-lg">
+		<Dialog.Header>
+			<Dialog.Title>{$t('settings.users.modal.create.title')}</Dialog.Title>
+		</Dialog.Header>
+		<form onsubmit={(e) => { e.preventDefault(); handleCreateUser(); }} class="space-y-3">
+			<div>
+				<Label for="user-email" class="text-xs mb-1">{$t('settings.users.email')}</Label>
+				<Input id="user-email" type="text" bind:value={newUserEmail}
+					placeholder="alice@example.com or alice" disabled={creatingUser} class="h-8" />
 			</div>
-		</div>
-		<div class="flex gap-2 pt-2">
-			<Button color="alternative" size="sm" class="flex-1"
-				onclick={() => createUserModalOpen = false} disabled={creatingUser}>
-				{$t('common.cancel')}
-			</Button>
-			<Button type="submit" color="blue" size="sm" class="flex-1"
-				disabled={creatingUser || !newUserEmail.trim() || !newUserPassword || newUserPassword.length < 6}>
-				{creatingUser ? $t('settings.users.creating') : $t('settings.users.create')}
-			</Button>
-		</div>
-	</form>
-</Modal>
-
-<!-- Edit user modal -->
-<Modal
-	bind:open={editUserModalOpen}
-	title={editingUser ? `${$t('settings.users.modal.edit.titlePrefix')} ${editingUser.email}` : $t('settings.users.modal.edit.titleFallback')}
-	size="md"
-	dismissable
-	class="bg-gray-900 border-gray-700"
-	bodyClass="text-gray-200"
->
-	{#if editingUser}
-		<form onsubmit={(e) => { e.preventDefault(); handleSaveEdit(); }} class="space-y-3">
+			<div>
+				<Label for="user-username" class="text-xs mb-1">{$t('settings.users.username')}</Label>
+				<Input id="user-username" type="text" bind:value={newUserUsername}
+					placeholder="alice" disabled={creatingUser} class="h-8" />
+			</div>
+			<div>
+				<Label for="user-password" class="text-xs mb-1">{$t('settings.users.password')}</Label>
+				<Input id="user-password" type="password" bind:value={newUserPassword}
+					placeholder={$t('settings.users.password.placeholder')} disabled={creatingUser} class="h-8" />
+			</div>
 			<div>
 				<Label class="text-xs mb-1">{$t('settings.users.role')}</Label>
-				<div class="flex flex-col gap-1 text-sm">
-					<Radio bind:group={editRole} value="admin">
-						<span class="font-semibold">{$t('settings.users.role.admin')}</span>
-						<span class="text-xs text-gray-500 ml-1">{$t('settings.users.role.admin.help.short')}</span>
-					</Radio>
-					<Radio bind:group={editRole} value="operator">
-						<span class="font-semibold">{$t('settings.users.role.operator')}</span>
-						<span class="text-xs text-gray-500 ml-1">{$t('settings.users.role.operator.help')}</span>
-					</Radio>
-					<Radio bind:group={editRole} value="member">
-						<span class="font-semibold">{$t('settings.users.role.member')}</span>
-						<span class="text-xs text-gray-500 ml-1">{$t('settings.users.role.member.help')}</span>
-					</Radio>
-					<Radio bind:group={editRole} value="viewer">
-						<span class="font-semibold">{$t('settings.users.role.viewer')}</span>
-						<span class="text-xs text-gray-500 ml-1">{$t('settings.users.role.viewer.help')}</span>
-					</Radio>
-				</div>
-			</div>
-			<div>
-				<Label for="edit-pw" class="text-xs mb-1">{$t('settings.users.newPassword')}</Label>
-				<Input id="edit-pw" type="password" bind:value={editPassword}
-					placeholder={$t('settings.users.password.placeholder')} disabled={savingEdit} size="sm" />
+				<RadioGroup.Root
+					value={newUserRole}
+					onValueChange={(v) => (newUserRole = v as Role)}
+					class="flex flex-col gap-1"
+				>
+					<div class="flex items-center gap-2">
+						<RadioGroup.Item value="admin" id="new-role-admin" />
+						<Label for="new-role-admin" class="text-sm font-normal">
+							<span class="font-semibold">{$t('settings.users.role.admin')}</span>
+							<span class="text-xs text-muted-foreground">{$t('settings.users.role.admin.help')}</span>
+						</Label>
+					</div>
+					<div class="flex items-center gap-2">
+						<RadioGroup.Item value="operator" id="new-role-operator" />
+						<Label for="new-role-operator" class="text-sm font-normal">
+							<span class="font-semibold">{$t('settings.users.role.operator')}</span>
+							<span class="text-xs text-muted-foreground">{$t('settings.users.role.operator.help')}</span>
+						</Label>
+					</div>
+					<div class="flex items-center gap-2">
+						<RadioGroup.Item value="member" id="new-role-member" />
+						<Label for="new-role-member" class="text-sm font-normal">
+							<span class="font-semibold">{$t('settings.users.role.member')}</span>
+							<span class="text-xs text-muted-foreground">{$t('settings.users.role.member.help')}</span>
+						</Label>
+					</div>
+					<div class="flex items-center gap-2">
+						<RadioGroup.Item value="viewer" id="new-role-viewer" />
+						<Label for="new-role-viewer" class="text-sm font-normal">
+							<span class="font-semibold">{$t('settings.users.role.viewer')}</span>
+							<span class="text-xs text-muted-foreground">{$t('settings.users.role.viewer.help')}</span>
+						</Label>
+					</div>
+				</RadioGroup.Root>
 			</div>
 			<div class="flex gap-2 pt-2">
-				<Button color="alternative" size="sm" class="flex-1"
-					onclick={() => editUserModalOpen = false} disabled={savingEdit}>
+				<Button variant="outline" size="sm" class="flex-1"
+					onclick={() => createUserModalOpen = false} disabled={creatingUser}>
 					{$t('common.cancel')}
 				</Button>
-				<Button type="submit" color="blue" size="sm" class="flex-1" disabled={savingEdit}>
-					{savingEdit ? $t('common.saving') : $t('common.save')}
+				<Button type="submit" size="sm" class="flex-1"
+					disabled={creatingUser || !newUserEmail.trim() || !newUserPassword || newUserPassword.length < 6}>
+					{creatingUser ? $t('settings.users.creating') : $t('settings.users.create')}
 				</Button>
 			</div>
 		</form>
-	{/if}
-</Modal>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- Edit user modal -->
+<Dialog.Root bind:open={editUserModalOpen}>
+	<Dialog.Content class="sm:max-w-lg">
+		<Dialog.Header>
+			<Dialog.Title>
+				{editingUser ? `${$t('settings.users.modal.edit.titlePrefix')} ${editingUser.email}` : $t('settings.users.modal.edit.titleFallback')}
+			</Dialog.Title>
+		</Dialog.Header>
+		{#if editingUser}
+			<form onsubmit={(e) => { e.preventDefault(); handleSaveEdit(); }} class="space-y-3">
+				<div>
+					<Label class="text-xs mb-1">{$t('settings.users.role')}</Label>
+					<RadioGroup.Root
+						value={editRole}
+						onValueChange={(v) => (editRole = v as Role)}
+						class="flex flex-col gap-1"
+					>
+						<div class="flex items-center gap-2">
+							<RadioGroup.Item value="admin" id="edit-role-admin" />
+							<Label for="edit-role-admin" class="text-sm font-normal">
+								<span class="font-semibold">{$t('settings.users.role.admin')}</span>
+								<span class="text-xs text-muted-foreground">{$t('settings.users.role.admin.help.short')}</span>
+							</Label>
+						</div>
+						<div class="flex items-center gap-2">
+							<RadioGroup.Item value="operator" id="edit-role-operator" />
+							<Label for="edit-role-operator" class="text-sm font-normal">
+								<span class="font-semibold">{$t('settings.users.role.operator')}</span>
+								<span class="text-xs text-muted-foreground">{$t('settings.users.role.operator.help')}</span>
+							</Label>
+						</div>
+						<div class="flex items-center gap-2">
+							<RadioGroup.Item value="member" id="edit-role-member" />
+							<Label for="edit-role-member" class="text-sm font-normal">
+								<span class="font-semibold">{$t('settings.users.role.member')}</span>
+								<span class="text-xs text-muted-foreground">{$t('settings.users.role.member.help')}</span>
+							</Label>
+						</div>
+						<div class="flex items-center gap-2">
+							<RadioGroup.Item value="viewer" id="edit-role-viewer" />
+							<Label for="edit-role-viewer" class="text-sm font-normal">
+								<span class="font-semibold">{$t('settings.users.role.viewer')}</span>
+								<span class="text-xs text-muted-foreground">{$t('settings.users.role.viewer.help')}</span>
+							</Label>
+						</div>
+					</RadioGroup.Root>
+				</div>
+				<div>
+					<Label for="edit-pw" class="text-xs mb-1">{$t('settings.users.newPassword')}</Label>
+					<Input id="edit-pw" type="password" bind:value={editPassword}
+						placeholder={$t('settings.users.password.placeholder')} disabled={savingEdit} class="h-8" />
+				</div>
+				<div class="flex gap-2 pt-2">
+					<Button variant="outline" size="sm" class="flex-1"
+						onclick={() => editUserModalOpen = false} disabled={savingEdit}>
+						{$t('common.cancel')}
+					</Button>
+					<Button type="submit" size="sm" class="flex-1" disabled={savingEdit}>
+						{savingEdit ? $t('common.saving') : $t('common.save')}
+					</Button>
+				</div>
+			</form>
+		{/if}
+	</Dialog.Content>
+</Dialog.Root>
 
 <!-- Edit features modal -->
-<Modal
-	bind:open={featuresModalOpen}
-	title={featuresSlug ? `${$t('settings.features.modalTitleFor')} ${featuresSlug}` : $t('settings.features.modalTitle')}
-	size="lg"
-	dismissable
-	class="bg-gray-900 border-gray-700"
-	bodyClass="text-gray-200"
->
-	{#if featuresMessage}
-		<Alert color={featuresMessageErr ? 'red' : 'green'} class="text-xs py-2 mb-3">
-			{featuresMessage}
-		</Alert>
-	{/if}
-	{#if !featuresDraft}
-		<p class="text-sm text-gray-500">{$t('common.loading')}</p>
-	{:else}
-		<div class="space-y-4">
-			<!-- Master mode: dry-run vs apply. Switches all write-back actions. -->
-			<div
-				class="rounded-lg border p-3 transition-colors {featuresDraft.apply
-					? 'border-green-700/60 bg-green-900/20'
-					: 'border-yellow-700/60 bg-yellow-900/20'}"
-			>
-				<div class="flex items-center justify-between gap-3">
-					<div>
-						<h4 class="text-sm font-semibold {featuresDraft.apply ? 'text-green-300' : 'text-yellow-300'} flex items-center gap-1">
-							{featuresDraft.apply
-								? $t('settings.features.mode.apply')
-								: $t('settings.features.mode.dryrun')}
-							{@render infoTip('mode-tip', 'settings.features.mode.tip')}
-						</h4>
-						<p class="text-xs text-gray-400 mt-0.5">
-							{featuresDraft.apply
-								? $t('settings.features.mode.body.apply')
-								: $t('settings.features.mode.body.dryrun')}
-						</p>
-					</div>
-					<label class="inline-flex items-center cursor-pointer shrink-0">
-						<input
-							type="checkbox"
-							bind:checked={featuresDraft.apply}
-							class="sr-only peer"
-						/>
-						<span class="relative w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500/40 rounded-full peer peer-checked:bg-green-600 transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-transform peer-checked:after:translate-x-5"></span>
-					</label>
-				</div>
-			</div>
-
-			<div>
-				<h4 class="text-xs uppercase text-gray-500 font-semibold mb-2">{$t('settings.features.collection.title')}</h4>
-				<p class="text-xs text-gray-500 mb-2">
-					{$t('settings.features.collection.body')}
-				</p>
-				<div class="space-y-1.5">
-					<label class="flex items-center gap-2 text-sm">
-						<input type="checkbox" bind:checked={featuresDraft.collect_issues} class="rounded" />
-						<span><strong>{$t('settings.features.collection.issues')}</strong> <span class="text-xs text-gray-500">{$t('settings.features.collection.issues.help')}</span></span>
-						{@render infoTip('tip-collect-issues', 'settings.features.collection.issues.tip')}
-					</label>
-					<label class="flex items-center gap-2 text-sm">
-						<input type="checkbox" bind:checked={featuresDraft.collect_prs} class="rounded" />
-						<span><strong>{$t('settings.features.collection.prs')}</strong> <span class="text-xs text-gray-500">{$t('settings.features.collection.prs.help')}</span></span>
-						{@render infoTip('tip-collect-prs', 'settings.features.collection.prs.tip')}
-					</label>
-				</div>
-			</div>
-
-			<div class:opacity-60={!featuresDraft.apply}>
-				<h4 class="text-xs uppercase text-gray-500 font-semibold mb-2">
-					{$t('settings.features.ai.title')}
-					{#if !featuresDraft.apply}
-						<span class="ml-2 text-yellow-500/80 normal-case font-normal">{$t('settings.features.ai.dimmed')}</span>
-					{/if}
-				</h4>
-				<p class="text-xs text-gray-500 mb-2">
-					{$t('settings.features.ai.body')}
-				</p>
-				<div class="space-y-1.5">
-					<label class="flex items-center gap-2 text-sm">
-						<input type="checkbox" bind:checked={featuresDraft.triage_issues} class="rounded" />
-						<span><strong>{$t('settings.features.ai.triage')}</strong> <span class="text-xs text-gray-500">{$t('settings.features.ai.triage.help')}</span></span>
-						{@render infoTip('tip-triage', 'settings.features.ai.triage.tip')}
-					</label>
-					<label class="flex items-center gap-2 text-sm">
-						<input type="checkbox" bind:checked={featuresDraft.analyze_prs} class="rounded" />
-						<span><strong>{$t('settings.features.ai.analyze')}</strong> <span class="text-xs text-gray-500">{$t('settings.features.ai.analyze.help')}</span></span>
-						{@render infoTip('tip-analyze', 'settings.features.ai.analyze.tip')}
-					</label>
-					<label class="flex items-center gap-2 text-sm">
-						<input type="checkbox" bind:checked={featuresDraft.review_prs} class="rounded" />
-						<span>
-							<strong>{$t('settings.features.ai.review')}</strong>
-							<span class="text-xs text-gray-500">{$t('settings.features.ai.review.help')}</span>
-						</span>
-						{@render infoTip('tip-review', 'settings.features.ai.review.tip')}
-					</label>
-				</div>
-			</div>
-
-			<div class:opacity-60={!featuresDraft.apply}>
-				<h4 class="text-xs uppercase text-gray-500 font-semibold mb-2">
-					{$t('settings.features.auto.title')}
-					{#if !featuresDraft.apply}
-						<span class="ml-2 text-yellow-500/80 normal-case font-normal">{$t('settings.features.auto.dimmed')}</span>
-					{/if}
-				</h4>
-				<p class="text-xs text-gray-500 mb-2">
-					{$t('settings.features.auto.body')}
-				</p>
-				<div class="space-y-1.5">
-					<label class="flex items-center gap-2 text-sm">
-						<input type="checkbox" bind:checked={featuresDraft.auto_pr} class="rounded" />
-						<span><strong>{$t('settings.features.auto.fix')}</strong> <span class="text-xs text-gray-500">{$t('settings.features.auto.fix.help')}</span></span>
-						{@render infoTip('tip-autopr', 'settings.features.auto.fix.tip')}
-					</label>
-					<label class="flex items-center gap-2 text-sm">
-						<input type="checkbox" bind:checked={featuresDraft.auto_merge} class="rounded" />
-						<span><strong>{$t('settings.features.auto.merge')}</strong> <span class="text-xs text-gray-500">{$t('settings.features.auto.merge.help')}</span></span>
-						{@render infoTip('tip-automerge', 'settings.features.auto.merge.tip')}
-					</label>
-				</div>
-			</div>
-
-			<!-- Advanced filters: collapsible. Free-text comma-separated for arrays. -->
-			<details class="rounded border border-gray-700 bg-gray-900/40">
-				<summary class="cursor-pointer px-3 py-2 text-sm font-semibold text-blue-300 hover:text-blue-200">
-					{$t('settings.advancedFilters')}
-				</summary>
-				<div class="p-3 space-y-3 text-sm">
-					<!-- One-click defaults aligned with GitHub's standard label set. -->
-					<div class="flex items-start justify-between gap-3 rounded border border-blue-700/40 bg-blue-900/20 p-3">
-						<div class="text-xs">
-							<p class="font-semibold text-blue-300 mb-1">{$t('settings.advancedFilters.defaults.title')}</p>
-							<p class="text-gray-400">
-								{$t('settings.advancedFilters.defaults.body')}
+<Dialog.Root bind:open={featuresModalOpen}>
+	<Dialog.Content class="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+		<Dialog.Header>
+			<Dialog.Title>
+				{featuresSlug ? `${$t('settings.features.modalTitleFor')} ${featuresSlug}` : $t('settings.features.modalTitle')}
+			</Dialog.Title>
+		</Dialog.Header>
+		{#if featuresMessage}
+			{@render statusAlert(featuresMessage, featuresMessageErr, 'mb-3')}
+		{/if}
+		{#if !featuresDraft}
+			<p class="text-sm text-muted-foreground">{$t('common.loading')}</p>
+		{:else}
+			<div class="space-y-4">
+				<!-- Master mode: dry-run vs apply. Switches all write-back actions. -->
+				<div
+					class="rounded-lg border p-3 transition-colors {featuresDraft.apply
+						? 'border-green-500/30 bg-green-500/10'
+						: 'border-yellow-500/40 bg-yellow-500/10'}"
+				>
+					<div class="flex items-center justify-between gap-3">
+						<div>
+							<h4 class="text-sm font-semibold {featuresDraft.apply ? 'text-green-700 dark:text-green-300' : 'text-yellow-700 dark:text-yellow-300'} flex items-center gap-1">
+								{featuresDraft.apply
+									? $t('settings.features.mode.apply')
+									: $t('settings.features.mode.dryrun')}
+								{@render infoTip('mode-tip', 'settings.features.mode.tip')}
+							</h4>
+							<p class="text-xs text-muted-foreground mt-0.5">
+								{featuresDraft.apply
+									? $t('settings.features.mode.body.apply')
+									: $t('settings.features.mode.body.dryrun')}
 							</p>
 						</div>
-						<Button color="blue" size="xs" onclick={applyGithubDefaults} class="shrink-0">
-							{$t('settings.advancedFilters.defaults.apply')}
-						</Button>
-					</div>
-
-					<details class="rounded border border-gray-700 bg-gray-900/40">
-						<summary class="cursor-pointer px-3 py-2 text-xs font-semibold text-gray-400 hover:text-gray-200">
-							{$t('settings.advancedFilters.defaults.help')}
-						</summary>
-						<div class="p-3 text-xs space-y-1 text-gray-400">
-							<div><code class="text-red-300">bug</code> — Something isn't working. <em>Triage candidate.</em></div>
-							<div><code class="text-cyan-300">enhancement</code> — New feature or request.</div>
-							<div><code class="text-blue-300">documentation</code> — Doc improvements.</div>
-							<div><code class="text-yellow-300">good first issue</code> — Good for newcomers. <em>Auto-fix candidate.</em></div>
-							<div><code class="text-green-300">help wanted</code> — Extra attention is needed.</div>
-							<div><code class="text-purple-300">question</code> — Further info requested. <em>Skip triage (human judgment).</em></div>
-							<div><code class="text-gray-500">duplicate</code> — Already exists. <em>Skip triage.</em></div>
-							<div><code class="text-gray-500">invalid</code> — Doesn't seem right. <em>Skip triage.</em></div>
-							<div><code class="text-gray-500">wontfix</code> — Will not be worked on. <em>Skip triage.</em></div>
-						</div>
-					</details>
-					<div>
-						<h5 class="text-xs uppercase text-gray-500 font-semibold mb-1">{$t('settings.advancedFilters.section.global')}</h5>
-						<Label class="text-xs mb-1">{$t('settings.advancedFilters.skipAuthors')}</Label>
-						<Input
-							size="sm"
-							placeholder="dependabot[bot], renovate[bot]"
-							value={featuresDraft.filters.skip_authors.join(', ')}
-							onchange={(e) => {
-								featuresDraft!.filters.skip_authors = parseCsv((e.currentTarget as HTMLInputElement).value);
-							}}
-						/>
-						<Label class="text-xs mb-1 mt-2">{$t('settings.advancedFilters.targetBranches')}</Label>
-						<Input
-							size="sm"
-							placeholder="main, develop"
-							value={featuresDraft.filters.target_branches.join(', ')}
-							onchange={(e) => {
-								featuresDraft!.filters.target_branches = parseCsv((e.currentTarget as HTMLInputElement).value);
-							}}
-						/>
-						<label class="flex items-center gap-2 text-sm mt-2">
-							<input type="checkbox" bind:checked={featuresDraft.filters.skip_drafts} class="rounded" />
-							<span>{$t('settings.advancedFilters.skipDrafts')}</span>
-						</label>
-					</div>
-
-					<div>
-						<h5 class="text-xs uppercase text-gray-500 font-semibold mb-1">{$t('settings.advancedFilters.section.triage')}</h5>
-						<Label class="text-xs mb-1">{$t('settings.advancedFilters.onlyLabels')}</Label>
-						<Input
-							size="sm"
-							placeholder="needs-triage, bug"
-							value={featuresDraft.filters.triage_only_labels.join(', ')}
-							onchange={(e) => {
-								featuresDraft!.filters.triage_only_labels = parseCsv((e.currentTarget as HTMLInputElement).value);
-							}}
-						/>
-						<Label class="text-xs mb-1 mt-2">{$t('settings.advancedFilters.skipLabels')}</Label>
-						<Input
-							size="sm"
-							placeholder="wontfix, duplicate"
-							value={featuresDraft.filters.triage_skip_labels.join(', ')}
-							onchange={(e) => {
-								featuresDraft!.filters.triage_skip_labels = parseCsv((e.currentTarget as HTMLInputElement).value);
-							}}
-						/>
-						<Label class="text-xs mb-1 mt-2">{$t('settings.advancedFilters.maxAge')}</Label>
-						<Input
-							type="number"
-							size="sm"
-							bind:value={featuresDraft.filters.triage_max_age_days}
-						/>
-					</div>
-
-					<div>
-						<h5 class="text-xs uppercase text-gray-500 font-semibold mb-1">{$t('settings.advancedFilters.section.analyze')}</h5>
-						<div class="grid grid-cols-2 gap-2">
-							<div>
-								<Label class="text-xs mb-1">{$t('settings.advancedFilters.minLoc')}</Label>
-								<Input type="number" size="sm" bind:value={featuresDraft.filters.analyze_min_loc} />
-							</div>
-							<div>
-								<Label class="text-xs mb-1">{$t('settings.advancedFilters.maxLoc')}</Label>
-								<Input type="number" size="sm" bind:value={featuresDraft.filters.analyze_max_loc} />
-							</div>
-						</div>
-					</div>
-
-					<div>
-						<h5 class="text-xs uppercase text-gray-500 font-semibold mb-1">{$t('settings.advancedFilters.section.autoFix')}</h5>
-						<Label class="text-xs mb-1">{$t('settings.advancedFilters.onlyLabels')}</Label>
-						<Input
-							size="sm"
-							placeholder="good-first-issue, auto-fix"
-							value={featuresDraft.filters.auto_pr_only_labels.join(', ')}
-							onchange={(e) => {
-								featuresDraft!.filters.auto_pr_only_labels = parseCsv((e.currentTarget as HTMLInputElement).value);
-							}}
-						/>
-						<Label class="text-xs mb-1 mt-2">{$t('settings.advancedFilters.targetBranch')}</Label>
-						<Input size="sm" placeholder="main" bind:value={featuresDraft.filters.auto_pr_target_branch} />
-					</div>
-
-					<div>
-						<h5 class="text-xs uppercase text-gray-500 font-semibold mb-1">{$t('settings.advancedFilters.section.autoMerge')}</h5>
-						<Label class="text-xs mb-1">{$t('settings.advancedFilters.onlyAuthors')}</Label>
-						<Input
-							size="sm"
-							placeholder="dependabot[bot]"
-							value={featuresDraft.filters.auto_merge_only_authors.join(', ')}
-							onchange={(e) => {
-								featuresDraft!.filters.auto_merge_only_authors = parseCsv((e.currentTarget as HTMLInputElement).value);
-							}}
-						/>
-						<Label class="text-xs mb-1 mt-2">{$t('settings.advancedFilters.onlyLabels')}</Label>
-						<Input
-							size="sm"
-							placeholder="auto-merge"
-							value={featuresDraft.filters.auto_merge_only_labels.join(', ')}
-							onchange={(e) => {
-								featuresDraft!.filters.auto_merge_only_labels = parseCsv((e.currentTarget as HTMLInputElement).value);
-							}}
-						/>
-						<div class="grid grid-cols-2 gap-2 mt-2">
-							<div>
-								<Label class="text-xs mb-1">{$t('settings.advancedFilters.minApprovals')}</Label>
-								<Input type="number" size="sm" bind:value={featuresDraft.filters.auto_merge_min_approvals} />
-							</div>
-							<div>
-								<Label class="text-xs mb-1">{$t('settings.advancedFilters.maxLoc')}</Label>
-								<Input type="number" size="sm" bind:value={featuresDraft.filters.auto_merge_max_loc} />
-							</div>
-						</div>
+						<Switch bind:checked={featuresDraft.apply} class="shrink-0" />
 					</div>
 				</div>
-			</details>
 
-			<div class="flex gap-2 pt-2">
-				<Button color="alternative" size="sm" class="flex-1"
-					onclick={() => featuresModalOpen = false} disabled={featuresSaving}>
-					{$t('common.cancel')}
-				</Button>
-				<Button color="blue" size="sm" class="flex-1"
-					onclick={handleSaveFeatures} disabled={featuresSaving}>
-					{featuresSaving ? $t('common.saving') : $t('common.save')}
-				</Button>
+				<div>
+					<h4 class="text-xs uppercase text-muted-foreground font-semibold mb-2">{$t('settings.features.collection.title')}</h4>
+					<p class="text-xs text-muted-foreground mb-2">
+						{$t('settings.features.collection.body')}
+					</p>
+					<div class="space-y-1.5">
+						<label class="flex items-center gap-2 text-sm">
+							<input type="checkbox" bind:checked={featuresDraft.collect_issues} class="rounded" />
+							<span><strong>{$t('settings.features.collection.issues')}</strong> <span class="text-xs text-muted-foreground">{$t('settings.features.collection.issues.help')}</span></span>
+							{@render infoTip('tip-collect-issues', 'settings.features.collection.issues.tip')}
+						</label>
+						<label class="flex items-center gap-2 text-sm">
+							<input type="checkbox" bind:checked={featuresDraft.collect_prs} class="rounded" />
+							<span><strong>{$t('settings.features.collection.prs')}</strong> <span class="text-xs text-muted-foreground">{$t('settings.features.collection.prs.help')}</span></span>
+							{@render infoTip('tip-collect-prs', 'settings.features.collection.prs.tip')}
+						</label>
+					</div>
+				</div>
+
+				<div class:opacity-60={!featuresDraft.apply}>
+					<h4 class="text-xs uppercase text-muted-foreground font-semibold mb-2">
+						{$t('settings.features.ai.title')}
+						{#if !featuresDraft.apply}
+							<span class="ml-2 text-yellow-600 dark:text-yellow-500/80 normal-case font-normal">{$t('settings.features.ai.dimmed')}</span>
+						{/if}
+					</h4>
+					<p class="text-xs text-muted-foreground mb-2">
+						{$t('settings.features.ai.body')}
+					</p>
+					<div class="space-y-1.5">
+						<label class="flex items-center gap-2 text-sm">
+							<input type="checkbox" bind:checked={featuresDraft.triage_issues} class="rounded" />
+							<span><strong>{$t('settings.features.ai.triage')}</strong> <span class="text-xs text-muted-foreground">{$t('settings.features.ai.triage.help')}</span></span>
+							{@render infoTip('tip-triage', 'settings.features.ai.triage.tip')}
+						</label>
+						<label class="flex items-center gap-2 text-sm">
+							<input type="checkbox" bind:checked={featuresDraft.analyze_prs} class="rounded" />
+							<span><strong>{$t('settings.features.ai.analyze')}</strong> <span class="text-xs text-muted-foreground">{$t('settings.features.ai.analyze.help')}</span></span>
+							{@render infoTip('tip-analyze', 'settings.features.ai.analyze.tip')}
+						</label>
+						<label class="flex items-center gap-2 text-sm">
+							<input type="checkbox" bind:checked={featuresDraft.review_prs} class="rounded" />
+							<span>
+								<strong>{$t('settings.features.ai.review')}</strong>
+								<span class="text-xs text-muted-foreground">{$t('settings.features.ai.review.help')}</span>
+							</span>
+							{@render infoTip('tip-review', 'settings.features.ai.review.tip')}
+						</label>
+					</div>
+				</div>
+
+				<div class:opacity-60={!featuresDraft.apply}>
+					<h4 class="text-xs uppercase text-muted-foreground font-semibold mb-2">
+						{$t('settings.features.auto.title')}
+						{#if !featuresDraft.apply}
+							<span class="ml-2 text-yellow-600 dark:text-yellow-500/80 normal-case font-normal">{$t('settings.features.auto.dimmed')}</span>
+						{/if}
+					</h4>
+					<p class="text-xs text-muted-foreground mb-2">
+						{$t('settings.features.auto.body')}
+					</p>
+					<div class="space-y-1.5">
+						<label class="flex items-center gap-2 text-sm">
+							<input type="checkbox" bind:checked={featuresDraft.auto_pr} class="rounded" />
+							<span><strong>{$t('settings.features.auto.fix')}</strong> <span class="text-xs text-muted-foreground">{$t('settings.features.auto.fix.help')}</span></span>
+							{@render infoTip('tip-autopr', 'settings.features.auto.fix.tip')}
+						</label>
+						<label class="flex items-center gap-2 text-sm">
+							<input type="checkbox" bind:checked={featuresDraft.auto_merge} class="rounded" />
+							<span><strong>{$t('settings.features.auto.merge')}</strong> <span class="text-xs text-muted-foreground">{$t('settings.features.auto.merge.help')}</span></span>
+							{@render infoTip('tip-automerge', 'settings.features.auto.merge.tip')}
+						</label>
+					</div>
+				</div>
+
+				<!-- Advanced filters: collapsible. Free-text comma-separated for arrays. -->
+				<details class="rounded border bg-muted/40">
+					<summary class="cursor-pointer px-3 py-2 text-sm font-semibold text-primary hover:text-primary/80">
+						{$t('settings.advancedFilters')}
+					</summary>
+					<div class="p-3 space-y-3 text-sm">
+						<!-- One-click defaults aligned with GitHub's standard label set. -->
+						<div class="flex items-start justify-between gap-3 rounded border border-primary/30 bg-primary/10 p-3">
+							<div class="text-xs">
+								<p class="font-semibold text-primary mb-1">{$t('settings.advancedFilters.defaults.title')}</p>
+								<p class="text-muted-foreground">
+									{$t('settings.advancedFilters.defaults.body')}
+								</p>
+							</div>
+							<Button size="xs" onclick={applyGithubDefaults} class="shrink-0">
+								{$t('settings.advancedFilters.defaults.apply')}
+							</Button>
+						</div>
+
+						<details class="rounded border bg-muted/40">
+							<summary class="cursor-pointer px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground">
+								{$t('settings.advancedFilters.defaults.help')}
+							</summary>
+							<div class="p-3 text-xs space-y-1 text-muted-foreground">
+								<div><code class="text-red-600 dark:text-red-300">bug</code> — Something isn't working. <em>Triage candidate.</em></div>
+								<div><code class="text-cyan-600 dark:text-cyan-300">enhancement</code> — New feature or request.</div>
+								<div><code class="text-primary">documentation</code> — Doc improvements.</div>
+								<div><code class="text-yellow-600 dark:text-yellow-300">good first issue</code> — Good for newcomers. <em>Auto-fix candidate.</em></div>
+								<div><code class="text-green-600 dark:text-green-300">help wanted</code> — Extra attention is needed.</div>
+								<div><code class="text-purple-600 dark:text-purple-300">question</code> — Further info requested. <em>Skip triage (human judgment).</em></div>
+								<div><code class="text-muted-foreground">duplicate</code> — Already exists. <em>Skip triage.</em></div>
+								<div><code class="text-muted-foreground">invalid</code> — Doesn't seem right. <em>Skip triage.</em></div>
+								<div><code class="text-muted-foreground">wontfix</code> — Will not be worked on. <em>Skip triage.</em></div>
+							</div>
+						</details>
+						<div>
+							<h5 class="text-xs uppercase text-muted-foreground font-semibold mb-1">{$t('settings.advancedFilters.section.global')}</h5>
+							<Label class="text-xs mb-1">{$t('settings.advancedFilters.skipAuthors')}</Label>
+							<Input
+								class="h-8"
+								placeholder="dependabot[bot], renovate[bot]"
+								value={featuresDraft.filters.skip_authors.join(', ')}
+								onchange={(e) => {
+									featuresDraft!.filters.skip_authors = parseCsv((e.currentTarget as HTMLInputElement).value);
+								}}
+							/>
+							<Label class="text-xs mb-1 mt-2">{$t('settings.advancedFilters.targetBranches')}</Label>
+							<Input
+								class="h-8"
+								placeholder="main, develop"
+								value={featuresDraft.filters.target_branches.join(', ')}
+								onchange={(e) => {
+									featuresDraft!.filters.target_branches = parseCsv((e.currentTarget as HTMLInputElement).value);
+								}}
+							/>
+							<label class="flex items-center gap-2 text-sm mt-2">
+								<input type="checkbox" bind:checked={featuresDraft.filters.skip_drafts} class="rounded" />
+								<span>{$t('settings.advancedFilters.skipDrafts')}</span>
+							</label>
+						</div>
+
+						<div>
+							<h5 class="text-xs uppercase text-muted-foreground font-semibold mb-1">{$t('settings.advancedFilters.section.triage')}</h5>
+							<Label class="text-xs mb-1">{$t('settings.advancedFilters.onlyLabels')}</Label>
+							<Input
+								class="h-8"
+								placeholder="needs-triage, bug"
+								value={featuresDraft.filters.triage_only_labels.join(', ')}
+								onchange={(e) => {
+									featuresDraft!.filters.triage_only_labels = parseCsv((e.currentTarget as HTMLInputElement).value);
+								}}
+							/>
+							<Label class="text-xs mb-1 mt-2">{$t('settings.advancedFilters.skipLabels')}</Label>
+							<Input
+								class="h-8"
+								placeholder="wontfix, duplicate"
+								value={featuresDraft.filters.triage_skip_labels.join(', ')}
+								onchange={(e) => {
+									featuresDraft!.filters.triage_skip_labels = parseCsv((e.currentTarget as HTMLInputElement).value);
+								}}
+							/>
+							<Label class="text-xs mb-1 mt-2">{$t('settings.advancedFilters.maxAge')}</Label>
+							<Input
+								type="number"
+								class="h-8"
+								bind:value={featuresDraft.filters.triage_max_age_days}
+							/>
+						</div>
+
+						<div>
+							<h5 class="text-xs uppercase text-muted-foreground font-semibold mb-1">{$t('settings.advancedFilters.section.analyze')}</h5>
+							<div class="grid grid-cols-2 gap-2">
+								<div>
+									<Label class="text-xs mb-1">{$t('settings.advancedFilters.minLoc')}</Label>
+									<Input type="number" class="h-8" bind:value={featuresDraft.filters.analyze_min_loc} />
+								</div>
+								<div>
+									<Label class="text-xs mb-1">{$t('settings.advancedFilters.maxLoc')}</Label>
+									<Input type="number" class="h-8" bind:value={featuresDraft.filters.analyze_max_loc} />
+								</div>
+							</div>
+						</div>
+
+						<div>
+							<h5 class="text-xs uppercase text-muted-foreground font-semibold mb-1">{$t('settings.advancedFilters.section.autoFix')}</h5>
+							<Label class="text-xs mb-1">{$t('settings.advancedFilters.onlyLabels')}</Label>
+							<Input
+								class="h-8"
+								placeholder="good-first-issue, auto-fix"
+								value={featuresDraft.filters.auto_pr_only_labels.join(', ')}
+								onchange={(e) => {
+									featuresDraft!.filters.auto_pr_only_labels = parseCsv((e.currentTarget as HTMLInputElement).value);
+								}}
+							/>
+							<Label class="text-xs mb-1 mt-2">{$t('settings.advancedFilters.targetBranch')}</Label>
+							<Input class="h-8" placeholder="main" bind:value={featuresDraft.filters.auto_pr_target_branch} />
+						</div>
+
+						<div>
+							<h5 class="text-xs uppercase text-muted-foreground font-semibold mb-1">{$t('settings.advancedFilters.section.autoMerge')}</h5>
+							<Label class="text-xs mb-1">{$t('settings.advancedFilters.onlyAuthors')}</Label>
+							<Input
+								class="h-8"
+								placeholder="dependabot[bot]"
+								value={featuresDraft.filters.auto_merge_only_authors.join(', ')}
+								onchange={(e) => {
+									featuresDraft!.filters.auto_merge_only_authors = parseCsv((e.currentTarget as HTMLInputElement).value);
+								}}
+							/>
+							<Label class="text-xs mb-1 mt-2">{$t('settings.advancedFilters.onlyLabels')}</Label>
+							<Input
+								class="h-8"
+								placeholder="auto-merge"
+								value={featuresDraft.filters.auto_merge_only_labels.join(', ')}
+								onchange={(e) => {
+									featuresDraft!.filters.auto_merge_only_labels = parseCsv((e.currentTarget as HTMLInputElement).value);
+								}}
+							/>
+							<div class="grid grid-cols-2 gap-2 mt-2">
+								<div>
+									<Label class="text-xs mb-1">{$t('settings.advancedFilters.minApprovals')}</Label>
+									<Input type="number" class="h-8" bind:value={featuresDraft.filters.auto_merge_min_approvals} />
+								</div>
+								<div>
+									<Label class="text-xs mb-1">{$t('settings.advancedFilters.maxLoc')}</Label>
+									<Input type="number" class="h-8" bind:value={featuresDraft.filters.auto_merge_max_loc} />
+								</div>
+							</div>
+						</div>
+					</div>
+				</details>
+
+				<div class="flex gap-2 pt-2">
+					<Button variant="outline" size="sm" class="flex-1"
+						onclick={() => featuresModalOpen = false} disabled={featuresSaving}>
+						{$t('common.cancel')}
+					</Button>
+					<Button size="sm" class="flex-1"
+						onclick={handleSaveFeatures} disabled={featuresSaving}>
+						{featuresSaving ? $t('common.saving') : $t('common.save')}
+					</Button>
+				</div>
 			</div>
-		</div>
-	{/if}
-</Modal>
+		{/if}
+	</Dialog.Content>
+</Dialog.Root>
 
 <!-- Delete user confirm modal -->
-<Modal
-	bind:open={deleteUserModalOpen}
-	title={$t('settings.users.modal.delete.title')}
-	size="sm"
-	dismissable
-	class="bg-gray-900 border-gray-700"
-	bodyClass="text-gray-200"
->
-	{#if deletingUser}
-		<p class="text-sm">
-			{$t('settings.users.modal.delete.prefix')} <span class="mono text-red-300">{deletingUser.email}</span>{$t('settings.users.modal.delete.confirm')}
-		</p>
-		<div class="flex gap-2 pt-4">
-			<Button color="alternative" size="sm" class="flex-1"
-				onclick={() => deleteUserModalOpen = false} disabled={deletingNow}>
-				{$t('common.cancel')}
-			</Button>
-			<Button color="red" size="sm" class="flex-1"
-				onclick={handleConfirmDelete} disabled={deletingNow}>
-				{deletingNow ? $t('settings.users.deleting') : $t('common.delete')}
-			</Button>
-		</div>
-	{/if}
-</Modal>
+<Dialog.Root bind:open={deleteUserModalOpen}>
+	<Dialog.Content class="sm:max-w-md">
+		<Dialog.Header>
+			<Dialog.Title>{$t('settings.users.modal.delete.title')}</Dialog.Title>
+		</Dialog.Header>
+		{#if deletingUser}
+			<p class="text-sm">
+				{$t('settings.users.modal.delete.prefix')} <span class="mono text-destructive">{deletingUser.email}</span>{$t('settings.users.modal.delete.confirm')}
+			</p>
+			<div class="flex gap-2 pt-4">
+				<Button variant="outline" size="sm" class="flex-1"
+					onclick={() => deleteUserModalOpen = false} disabled={deletingNow}>
+					{$t('common.cancel')}
+				</Button>
+				<Button variant="destructive" size="sm" class="flex-1"
+					onclick={handleConfirmDelete} disabled={deletingNow}>
+					{deletingNow ? $t('settings.users.deleting') : $t('common.delete')}
+				</Button>
+			</div>
+		{/if}
+	</Dialog.Content>
+</Dialog.Root>

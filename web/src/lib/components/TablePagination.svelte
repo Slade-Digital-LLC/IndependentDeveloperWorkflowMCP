@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { Button, Select } from 'flowbite-svelte';
+	import { Button } from '$lib/components/ui/button';
+	import * as Select from '$lib/components/ui/select';
 
 	interface Props {
 		total: number;
@@ -41,19 +42,21 @@
 	const canNext = $derived(offset + limit < total);
 </script>
 
-<div class="flex items-center justify-between gap-3 text-xs text-gray-400 mt-3">
+<div class="flex items-center justify-between gap-3 text-xs text-muted-foreground mt-3">
 	<div class="flex items-center gap-2">
 		<span>Per page</span>
-		<Select
-			class="w-24 py-1 text-xs"
-			size="sm"
+		<Select.Root
+			type="single"
 			value={String(limit)}
-			onchange={(e) => setLimit(Number((e.target as HTMLSelectElement).value))}
+			onValueChange={(v) => { if (v) setLimit(Number(v)); }}
 		>
-			{#each sizes as s (s)}
-				<option value={String(s)}>{s}</option>
-			{/each}
-		</Select>
+			<Select.Trigger size="sm" class="w-24 text-xs">{limit}</Select.Trigger>
+			<Select.Content>
+				{#each sizes as s (s)}
+					<Select.Item value={String(s)} label={String(s)} />
+				{/each}
+			</Select.Content>
+		</Select.Root>
 	</div>
 
 	<div>
@@ -65,7 +68,7 @@
 	</div>
 
 	<div class="flex items-center gap-2">
-		<Button size="xs" color="alternative" disabled={!canPrev} onclick={prev}>Prev</Button>
-		<Button size="xs" color="alternative" disabled={!canNext} onclick={next}>Next</Button>
+		<Button size="xs" variant="outline" disabled={!canPrev} onclick={prev}>Prev</Button>
+		<Button size="xs" variant="outline" disabled={!canNext} onclick={next}>Next</Button>
 	</div>
 </div>

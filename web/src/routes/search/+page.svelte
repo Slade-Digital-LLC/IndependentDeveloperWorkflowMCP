@@ -10,20 +10,13 @@
 		type Issue,
 		type PullRequest
 	} from '$lib/api';
-	import {
-		Alert,
-		Badge,
-		Button,
-		Card,
-		Input,
-		Modal,
-		Table,
-		TableBody,
-		TableBodyCell,
-		TableBodyRow,
-		TableHead,
-		TableHeadCell
-	} from 'flowbite-svelte';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import * as Alert from '$lib/components/ui/alert';
+	import * as Card from '$lib/components/ui/card';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import * as Table from '$lib/components/ui/table';
 	import IssueDetail from '$lib/components/IssueDetail.svelte';
 	import PrDetail from '$lib/components/PrDetail.svelte';
 	import TablePagination from '$lib/components/TablePagination.svelte';
@@ -92,8 +85,13 @@
 	function kindLabel(k: SearchHit['kind']): string {
 		return { issue: 'Issue', pull: 'PR', triage: 'Triage', comment: 'Comment' }[k];
 	}
-	function kindColor(k: SearchHit['kind']): 'blue' | 'green' | 'yellow' | 'gray' {
-		return ({ issue: 'blue', pull: 'green', triage: 'yellow', comment: 'gray' } as const)[k];
+	function kindBadgeClass(k: SearchHit['kind']): string | null {
+		return {
+			issue: 'bg-primary/15 text-primary',
+			pull: 'border-green-500/30 bg-green-500/15 text-green-600 dark:text-green-400',
+			triage: 'border-yellow-500/30 bg-yellow-500/15 text-yellow-600 dark:text-yellow-400',
+			comment: null
+		}[k];
 	}
 
 	let modalOpen = $state(false);
@@ -137,8 +135,8 @@
 </svelte:head>
 
 <div class="mb-4">
-	<h2 class="text-xl font-semibold text-gray-100 mb-1">Search</h2>
-	<p class="text-sm text-gray-500">
+	<h2 class="text-xl font-semibold text-foreground mb-1">Search</h2>
+	<p class="text-sm text-muted-foreground">
 		Full-text search across issues, pull requests, triage results, and comments.
 	</p>
 </div>
@@ -148,72 +146,83 @@
 		type="search"
 		bind:value={qInput}
 		placeholder="Search… (e.g. 'hermes', 'oauth flow', 'cve-2025-')"
-		size="md"
 		class="flex-1"
 	/>
-	<Button type="submit" color="blue" disabled={loading}>
+	<Button type="submit" disabled={loading}>
 		{loading ? 'Searching…' : 'Search'}
 	</Button>
 </form>
 
 {#if error}
-	<Alert color="red" class="mb-3">{error}</Alert>
+	<Alert.Root variant="destructive" class="mb-3">
+		<Alert.Description>{error}</Alert.Description>
+	</Alert.Root>
 {/if}
 
 {#if !q && !loading}
-	<Card class="bg-gray-800 border-gray-700 max-w-none">
-		<p class="text-gray-500 text-center py-4 text-sm">
-			Type a query above to search across all your repos. Multi-word queries
-			narrow (AND); each token does a prefix match (<code>hermes</code> matches
-			<code>hermes-agent-cli</code>).
-		</p>
-	</Card>
+	<Card.Root>
+		<Card.Content>
+			<p class="text-muted-foreground text-center py-4 text-sm">
+				Type a query above to search across all your repos. Multi-word queries
+				narrow (AND); each token does a prefix match (<code>hermes</code> matches
+				<code>hermes-agent-cli</code>).
+			</p>
+		</Card.Content>
+	</Card.Root>
 {:else if total === 0 && !loading && q}
-	<Card class="bg-gray-800 border-gray-700 max-w-none">
-		<p class="text-gray-500 text-center py-4 text-sm">
-			No matches for <code>{q}</code>.
-		</p>
-	</Card>
+	<Card.Root>
+		<Card.Content>
+			<p class="text-muted-foreground text-center py-4 text-sm">
+				No matches for <code>{q}</code>.
+			</p>
+		</Card.Content>
+	</Card.Root>
 {:else}
-	<div class="w-full overflow-x-auto">
-		<Table striped hoverable class="w-full">
-			<TableHead class="text-xs uppercase text-gray-400">
-				<TableHeadCell class="px-2 py-1.5 w-[80px]">Kind</TableHeadCell>
-				<TableHeadCell class="px-2 py-1.5 w-[200px]">Repo</TableHeadCell>
-				<TableHeadCell class="px-2 py-1.5 w-[80px]">#</TableHeadCell>
-				<TableHeadCell class="px-2 py-1.5">Match</TableHeadCell>
-				<TableHeadCell class="px-2 py-1.5 w-[160px]">Updated</TableHeadCell>
-			</TableHead>
-			<TableBody>
+	<div class="w-full overflow-x-auto rounded-lg border">
+		<Table.Root class="w-full">
+			<Table.Header class="text-xs uppercase text-muted-foreground">
+				<Table.Row>
+					<Table.Head class="px-2 py-1.5 w-[80px]">Kind</Table.Head>
+					<Table.Head class="px-2 py-1.5 w-[200px]">Repo</Table.Head>
+					<Table.Head class="px-2 py-1.5 w-[80px]">#</Table.Head>
+					<Table.Head class="px-2 py-1.5">Match</Table.Head>
+					<Table.Head class="px-2 py-1.5 w-[160px]">Updated</Table.Head>
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
 				{#each hits as hit}
-					<TableBodyRow class="cursor-pointer" onclick={() => openHit(hit)}>
-						<TableBodyCell class="px-2 py-1.5">
-							<Badge color={kindColor(hit.kind)}>{kindLabel(hit.kind)}</Badge>
-						</TableBodyCell>
-						<TableBodyCell class="px-2 py-1.5 mono text-xs text-gray-400">{hit.repo}</TableBodyCell>
-						<TableBodyCell class="px-2 py-1.5 mono">#{hit.number}</TableBodyCell>
-						<TableBodyCell class="px-2 py-1.5 text-sm">
+					<Table.Row class="cursor-pointer" onclick={() => openHit(hit)}>
+						<Table.Cell class="px-2 py-1.5">
+							{#if kindBadgeClass(hit.kind)}
+								<Badge variant="outline" class={kindBadgeClass(hit.kind)}>{kindLabel(hit.kind)}</Badge>
+							{:else}
+								<Badge variant="secondary">{kindLabel(hit.kind)}</Badge>
+							{/if}
+						</Table.Cell>
+						<Table.Cell class="px-2 py-1.5 mono text-xs text-muted-foreground">{hit.repo}</Table.Cell>
+						<Table.Cell class="px-2 py-1.5 mono">#{hit.number}</Table.Cell>
+						<Table.Cell class="px-2 py-1.5 text-sm">
 							{#if hit.title}
-								<div class="font-semibold text-gray-200 truncate">{hit.title}</div>
+								<div class="font-semibold text-foreground truncate">{hit.title}</div>
 							{/if}
 							{#if hit.snippet}
 								<!-- snippet contains <mark>…</mark> from FTS5 — render as HTML -->
-								<div class="text-xs text-gray-400 truncate">{@html hit.snippet}</div>
+								<div class="text-xs text-muted-foreground truncate">{@html hit.snippet}</div>
 							{/if}
-						</TableBodyCell>
-						<TableBodyCell class="px-2 py-1.5 text-xs text-gray-500 mono whitespace-nowrap">
+						</Table.Cell>
+						<Table.Cell class="px-2 py-1.5 text-xs text-muted-foreground mono whitespace-nowrap">
 							{hit.updated_at?.slice(0, 10) ?? ''}
-						</TableBodyCell>
-					</TableBodyRow>
+						</Table.Cell>
+					</Table.Row>
 				{:else}
-					<TableBodyRow>
-						<TableBodyCell colspan={5} class="text-center text-gray-600 py-8">
+					<Table.Row>
+						<Table.Cell colspan={5} class="text-center text-muted-foreground py-8">
 							{loading ? 'Searching…' : 'No matches'}
-						</TableBodyCell>
-					</TableBodyRow>
+						</Table.Cell>
+					</Table.Row>
 				{/each}
-			</TableBody>
-		</Table>
+			</Table.Body>
+		</Table.Root>
 	</div>
 
 	<TablePagination
@@ -225,40 +234,36 @@
 	/>
 {/if}
 
-<Modal
-	bind:open={modalOpen}
-	size="xl"
-	dismissable
-	class="!max-w-[80vw] w-[80vw] bg-gray-900 border-gray-700"
-	bodyClass="text-gray-200"
->
-	{#snippet header()}
-		<div class="flex w-full items-center gap-3 pr-2">
-			<span class="mono text-gray-500 text-sm">
-				{modalKind === 'pull' ? 'PR' : 'Issue'} #{activePr?.number ?? activeIssue?.number ?? ''}
-			</span>
-			<span class="text-base font-semibold text-gray-100 truncate">
-				{activePr?.title ?? activeIssue?.title ?? (detailLoading ? 'Loading…' : '')}
-			</span>
-		</div>
-	{/snippet}
-	{#if detailLoading}
-		<p class="text-gray-500 text-sm">Loading…</p>
-	{:else if detailError}
-		<p class="text-red-400 text-sm">{detailError}</p>
-	{:else if modalKind === 'pull' && activePr}
-		<PrDetail pr={activePr} />
-		<div class="text-right pt-2">
-			<a href="/prs/{activePr.number}" class="text-xs text-blue-400 hover:text-blue-300">
-				Open full page →
-			</a>
-		</div>
-	{:else if activeIssue}
-		<IssueDetail issue={activeIssue} />
-		<div class="text-right pt-2">
-			<a href="/issues/{activeIssue.number}" class="text-xs text-blue-400 hover:text-blue-300">
-				Open full page →
-			</a>
-		</div>
-	{/if}
-</Modal>
+<Dialog.Root bind:open={modalOpen}>
+	<Dialog.Content class="max-h-[85vh] w-[80vw] max-w-[80vw] overflow-y-auto sm:max-w-[80vw]">
+		<Dialog.Header>
+			<Dialog.Title class="flex w-full items-center gap-3 pr-2">
+				<span class="mono text-muted-foreground text-sm">
+					{modalKind === 'pull' ? 'PR' : 'Issue'} #{activePr?.number ?? activeIssue?.number ?? ''}
+				</span>
+				<span class="text-base font-semibold text-foreground truncate">
+					{activePr?.title ?? activeIssue?.title ?? (detailLoading ? 'Loading…' : '')}
+				</span>
+			</Dialog.Title>
+		</Dialog.Header>
+		{#if detailLoading}
+			<p class="text-muted-foreground text-sm">Loading…</p>
+		{:else if detailError}
+			<p class="text-red-600 dark:text-red-400 text-sm">{detailError}</p>
+		{:else if modalKind === 'pull' && activePr}
+			<PrDetail pr={activePr} />
+			<div class="text-right pt-2">
+				<a href="/prs/{activePr.number}" class="text-xs text-primary hover:text-primary/80">
+					Open full page →
+				</a>
+			</div>
+		{:else if activeIssue}
+			<IssueDetail issue={activeIssue} />
+			<div class="text-right pt-2">
+				<a href="/issues/{activeIssue.number}" class="text-xs text-primary hover:text-primary/80">
+					Open full page →
+				</a>
+			</div>
+		{/if}
+	</Dialog.Content>
+</Dialog.Root>

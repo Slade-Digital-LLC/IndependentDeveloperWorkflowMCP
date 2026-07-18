@@ -3,7 +3,10 @@
 	import { selectedRepo } from '$lib/stores';
 	import { fetchPulls, type PullRequest } from '$lib/api';
 	import { timeAgo, exactTime } from '$lib/time';
-	import { Card, Badge, Table, TableHead, TableHeadCell, TableBody, TableBodyRow, TableBodyCell, Modal } from 'flowbite-svelte';
+	import { Badge } from '$lib/components/ui/badge';
+	import * as Card from '$lib/components/ui/card';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import * as Table from '$lib/components/ui/table';
 	import PrDetail from '$lib/components/PrDetail.svelte';
 
 	let pulls: PullRequest[] = $state([]);
@@ -85,10 +88,12 @@
 		modalOpen = true;
 	}
 
-	function ciBadge(ci: string | null | undefined): { color: 'green' | 'red' | 'gray'; label: string } {
-		if (ci === 'success') return { color: 'green', label: 'CI ✓' };
-		if (ci === 'failure') return { color: 'red', label: 'CI ✗' };
-		return { color: 'gray', label: 'CI –' };
+	function ciBadge(ci: string | null | undefined): { class: string | null; label: string } {
+		if (ci === 'success')
+			return { class: 'border-green-500/30 bg-green-500/15 text-green-600 dark:text-green-400', label: 'CI ✓' };
+		if (ci === 'failure')
+			return { class: 'border-red-500/30 bg-red-500/15 text-red-600 dark:text-red-400', label: 'CI ✗' };
+		return { class: null, label: 'CI –' };
 	}
 </script>
 
@@ -97,64 +102,80 @@
 </svelte:head>
 
 <div class="mb-6">
-	<h2 class="text-xl font-semibold text-gray-100 mb-1">To Validate</h2>
-	<p class="text-sm text-gray-500">Review radar — PRs waiting on you, so nothing slips through</p>
+	<h2 class="text-xl font-semibold text-foreground mb-1">To Validate</h2>
+	<p class="text-sm text-muted-foreground">Review radar — PRs waiting on you, so nothing slips through</p>
 </div>
 
 {#if error}
-	<Card class="border-red-500 bg-gray-800 max-w-none">
-		<p class="text-red-400">{error}</p>
-	</Card>
+	<Card.Root class="border-red-500">
+		<Card.Content>
+			<p class="text-red-600 dark:text-red-400">{error}</p>
+		</Card.Content>
+	</Card.Root>
 {:else if loading}
-	<Card class="bg-gray-800 border-gray-700 max-w-none">
-		<p class="text-gray-500 text-center py-6">Loading…</p>
-	</Card>
+	<Card.Root>
+		<Card.Content>
+			<p class="text-muted-foreground text-center py-6">Loading…</p>
+		</Card.Content>
+	</Card.Root>
 {:else}
 	{#if !hasDecisionData}
-		<Card class="bg-gray-800 border-gray-700 max-w-none mb-4">
-			<p class="text-sm text-gray-400">
-				No review data yet — decisions are fetched during PR sync.
-				<span class="block text-xs text-gray-500 mt-1">
-					Trigger a sync from the sidebar (requires a GitHub token with repo access).
-				</span>
-			</p>
-		</Card>
+		<Card.Root class="mb-4">
+			<Card.Content>
+				<p class="text-sm text-muted-foreground">
+					No review data yet — decisions are fetched during PR sync.
+					<span class="block text-xs text-muted-foreground mt-1">
+						Trigger a sync from the sidebar (requires a GitHub token with repo access).
+					</span>
+				</p>
+			</Card.Content>
+		</Card.Root>
 	{/if}
 
 	<!-- Ready to merge -->
 	<div class="mt-2">
 		<div class="flex items-baseline gap-2 mb-1">
-			<h2 class="text-lg font-semibold text-green-400">Ready to merge</h2>
-			<span class="text-xs text-gray-500 mono">{readyToMerge.length}</span>
+			<h2 class="text-lg font-semibold text-green-600 dark:text-green-400">Ready to merge</h2>
+			<span class="text-xs text-muted-foreground mono">{readyToMerge.length}</span>
 		</div>
-		<p class="text-sm text-gray-500 mb-3">Approved, no known conflicts, CI not failing — one click away</p>
+		<p class="text-sm text-muted-foreground mb-3">Approved, no known conflicts, CI not failing — one click away</p>
 		{#if readyToMerge.length === 0}
-			<Card class="bg-gray-800 border-gray-700 max-w-none">
-				<p class="text-gray-600 text-center py-3 text-sm">Nothing approved is waiting.</p>
-			</Card>
+			<Card.Root>
+				<Card.Content>
+					<p class="text-muted-foreground text-center py-3 text-sm">Nothing approved is waiting.</p>
+				</Card.Content>
+			</Card.Root>
 		{:else}
-			<div class="w-full overflow-x-auto">
-				<Table striped hoverable class="w-full">
-					<TableHead class="text-xs uppercase text-gray-400">
-						<TableHeadCell class="px-2 py-1.5 w-[70px]">#</TableHeadCell>
-						<TableHeadCell class="px-2 py-1.5">Title</TableHeadCell>
-						<TableHeadCell class="px-2 py-1.5 w-[70px]">CI</TableHeadCell>
-						<TableHeadCell class="px-2 py-1.5 w-[130px]">Approved</TableHeadCell>
-					</TableHead>
-					<TableBody>
+			<div class="w-full overflow-x-auto rounded-lg border">
+				<Table.Root class="w-full">
+					<Table.Header class="text-xs uppercase text-muted-foreground">
+						<Table.Row>
+							<Table.Head class="px-2 py-1.5 w-[70px]">#</Table.Head>
+							<Table.Head class="px-2 py-1.5">Title</Table.Head>
+							<Table.Head class="px-2 py-1.5 w-[70px]">CI</Table.Head>
+							<Table.Head class="px-2 py-1.5 w-[130px]">Approved</Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
 						{#each readyToMerge as pr}
 							{@const ci = ciBadge(pr.ci_status)}
-							<TableBodyRow class="cursor-pointer" onclick={() => openPr(pr)}>
-								<TableBodyCell class="px-2 py-1.5 mono">{pr.number}</TableBodyCell>
-								<TableBodyCell class="px-2 py-1.5">{pr.title}</TableBodyCell>
-								<TableBodyCell class="px-2 py-1.5"><Badge color={ci.color}>{ci.label}</Badge></TableBodyCell>
-								<TableBodyCell class="px-2 py-1.5 text-gray-500" title={exactTime(pr.review_decision_at)}>
+							<Table.Row class="cursor-pointer" onclick={() => openPr(pr)}>
+								<Table.Cell class="px-2 py-1.5 mono">{pr.number}</Table.Cell>
+								<Table.Cell class="px-2 py-1.5">{pr.title}</Table.Cell>
+								<Table.Cell class="px-2 py-1.5">
+									{#if ci.class}
+										<Badge variant="outline" class={ci.class}>{ci.label}</Badge>
+									{:else}
+										<Badge variant="secondary">{ci.label}</Badge>
+									{/if}
+								</Table.Cell>
+								<Table.Cell class="px-2 py-1.5 text-muted-foreground" title={exactTime(pr.review_decision_at)}>
 									{timeAgo(pr.review_decision_at)}
-								</TableBodyCell>
-							</TableBodyRow>
+								</Table.Cell>
+							</Table.Row>
 						{/each}
-					</TableBody>
-				</Table>
+					</Table.Body>
+				</Table.Root>
 			</div>
 		{/if}
 	</div>
@@ -162,38 +183,42 @@
 	<!-- Awaiting re-review -->
 	<div class="mt-6">
 		<div class="flex items-baseline gap-2 mb-1">
-			<h2 class="text-lg font-semibold text-yellow-400">Awaiting your re-review</h2>
-			<span class="text-xs text-gray-500 mono">{awaitingReReview.length}</span>
+			<h2 class="text-lg font-semibold text-yellow-600 dark:text-yellow-400">Awaiting your re-review</h2>
+			<span class="text-xs text-muted-foreground mono">{awaitingReReview.length}</span>
 		</div>
-		<p class="text-sm text-gray-500 mb-3">You requested changes and the author has since pushed — don't leave them hanging</p>
+		<p class="text-sm text-muted-foreground mb-3">You requested changes and the author has since pushed — don't leave them hanging</p>
 		{#if awaitingReReview.length === 0}
-			<Card class="bg-gray-800 border-gray-700 max-w-none">
-				<p class="text-gray-600 text-center py-3 text-sm">No PRs updated since your change requests.</p>
-			</Card>
+			<Card.Root>
+				<Card.Content>
+					<p class="text-muted-foreground text-center py-3 text-sm">No PRs updated since your change requests.</p>
+				</Card.Content>
+			</Card.Root>
 		{:else}
-			<div class="w-full overflow-x-auto">
-				<Table striped hoverable class="w-full">
-					<TableHead class="text-xs uppercase text-gray-400">
-						<TableHeadCell class="px-2 py-1.5 w-[70px]">#</TableHeadCell>
-						<TableHeadCell class="px-2 py-1.5">Title</TableHeadCell>
-						<TableHeadCell class="px-2 py-1.5 w-[150px]">Changes requested</TableHeadCell>
-						<TableHeadCell class="px-2 py-1.5 w-[130px]">Updated</TableHeadCell>
-					</TableHead>
-					<TableBody>
+			<div class="w-full overflow-x-auto rounded-lg border">
+				<Table.Root class="w-full">
+					<Table.Header class="text-xs uppercase text-muted-foreground">
+						<Table.Row>
+							<Table.Head class="px-2 py-1.5 w-[70px]">#</Table.Head>
+							<Table.Head class="px-2 py-1.5">Title</Table.Head>
+							<Table.Head class="px-2 py-1.5 w-[150px]">Changes requested</Table.Head>
+							<Table.Head class="px-2 py-1.5 w-[130px]">Updated</Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
 						{#each awaitingReReview as pr}
-							<TableBodyRow class="cursor-pointer" onclick={() => openPr(pr)}>
-								<TableBodyCell class="px-2 py-1.5 mono">{pr.number}</TableBodyCell>
-								<TableBodyCell class="px-2 py-1.5">{pr.title}</TableBodyCell>
-								<TableBodyCell class="px-2 py-1.5 text-gray-500" title={exactTime(pr.review_decision_at)}>
+							<Table.Row class="cursor-pointer" onclick={() => openPr(pr)}>
+								<Table.Cell class="px-2 py-1.5 mono">{pr.number}</Table.Cell>
+								<Table.Cell class="px-2 py-1.5">{pr.title}</Table.Cell>
+								<Table.Cell class="px-2 py-1.5 text-muted-foreground" title={exactTime(pr.review_decision_at)}>
 									{timeAgo(pr.review_decision_at)}
-								</TableBodyCell>
-								<TableBodyCell class="px-2 py-1.5 text-gray-300" title={exactTime(pr.updated_at)}>
+								</Table.Cell>
+								<Table.Cell class="px-2 py-1.5 text-foreground/90" title={exactTime(pr.updated_at)}>
 									{timeAgo(pr.updated_at)}
-								</TableBodyCell>
-							</TableBodyRow>
+								</Table.Cell>
+							</Table.Row>
 						{/each}
-					</TableBody>
-				</Table>
+					</Table.Body>
+				</Table.Root>
 			</div>
 		{/if}
 	</div>
@@ -201,40 +226,50 @@
 	<!-- Needs first review -->
 	<div class="mt-6">
 		<div class="flex items-baseline gap-2 mb-1">
-			<h2 class="text-lg font-semibold text-gray-200">Needs first review</h2>
-			<span class="text-xs text-gray-500 mono">{needsFirstReview.length}</span>
+			<h2 class="text-lg font-semibold text-foreground">Needs first review</h2>
+			<span class="text-xs text-muted-foreground mono">{needsFirstReview.length}</span>
 		</div>
-		<p class="text-sm text-gray-500 mb-3">Never reviewed, oldest first</p>
+		<p class="text-sm text-muted-foreground mb-3">Never reviewed, oldest first</p>
 		{#if needsFirstReview.length === 0}
-			<Card class="bg-gray-800 border-gray-700 max-w-none">
-				<p class="text-gray-600 text-center py-3 text-sm">Every open PR has at least one review.</p>
-			</Card>
+			<Card.Root>
+				<Card.Content>
+					<p class="text-muted-foreground text-center py-3 text-sm">Every open PR has at least one review.</p>
+				</Card.Content>
+			</Card.Root>
 		{:else}
-			<div class="w-full overflow-x-auto">
-				<Table striped hoverable class="w-full">
-					<TableHead class="text-xs uppercase text-gray-400">
-						<TableHeadCell class="px-2 py-1.5 w-[70px]">#</TableHeadCell>
-						<TableHeadCell class="px-2 py-1.5">Title</TableHeadCell>
-						<TableHeadCell class="px-2 py-1.5 w-[70px]">CI</TableHeadCell>
-						<TableHeadCell class="px-2 py-1.5 w-[110px]">Age</TableHeadCell>
-					</TableHead>
-					<TableBody>
+			<div class="w-full overflow-x-auto rounded-lg border">
+				<Table.Root class="w-full">
+					<Table.Header class="text-xs uppercase text-muted-foreground">
+						<Table.Row>
+							<Table.Head class="px-2 py-1.5 w-[70px]">#</Table.Head>
+							<Table.Head class="px-2 py-1.5">Title</Table.Head>
+							<Table.Head class="px-2 py-1.5 w-[70px]">CI</Table.Head>
+							<Table.Head class="px-2 py-1.5 w-[110px]">Age</Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
 						{#each needsFirstReview.slice(0, 30) as pr}
 							{@const ci = ciBadge(pr.ci_status)}
-							<TableBodyRow class="cursor-pointer" onclick={() => openPr(pr)}>
-								<TableBodyCell class="px-2 py-1.5 mono">{pr.number}</TableBodyCell>
-								<TableBodyCell class="px-2 py-1.5">{pr.title}</TableBodyCell>
-								<TableBodyCell class="px-2 py-1.5"><Badge color={ci.color}>{ci.label}</Badge></TableBodyCell>
-								<TableBodyCell class="px-2 py-1.5 text-gray-500" title={exactTime(pr.created_at)}>
+							<Table.Row class="cursor-pointer" onclick={() => openPr(pr)}>
+								<Table.Cell class="px-2 py-1.5 mono">{pr.number}</Table.Cell>
+								<Table.Cell class="px-2 py-1.5">{pr.title}</Table.Cell>
+								<Table.Cell class="px-2 py-1.5">
+									{#if ci.class}
+										<Badge variant="outline" class={ci.class}>{ci.label}</Badge>
+									{:else}
+										<Badge variant="secondary">{ci.label}</Badge>
+									{/if}
+								</Table.Cell>
+								<Table.Cell class="px-2 py-1.5 text-muted-foreground" title={exactTime(pr.created_at)}>
 									{timeAgo(pr.created_at)}
-								</TableBodyCell>
-							</TableBodyRow>
+								</Table.Cell>
+							</Table.Row>
 						{/each}
-					</TableBody>
-				</Table>
+					</Table.Body>
+				</Table.Root>
 			</div>
 			{#if needsFirstReview.length > 30}
-				<p class="text-xs text-gray-600 mt-2">Showing the 30 oldest of {needsFirstReview.length} — see <a href="/prs" class="text-blue-400 hover:underline">Pull Requests</a> for the full list.</p>
+				<p class="text-xs text-muted-foreground mt-2">Showing the 30 oldest of {needsFirstReview.length} — see <a href="/prs" class="text-primary hover:underline">Pull Requests</a> for the full list.</p>
 			{/if}
 		{/if}
 	</div>
@@ -243,15 +278,15 @@
 	{#if waitingOnAuthor.length > 0}
 		<div class="mt-6">
 			<div class="flex items-baseline gap-2 mb-1">
-				<h2 class="text-sm font-semibold text-gray-400">Waiting on author</h2>
-				<span class="text-xs text-gray-600 mono">{waitingOnAuthor.length}</span>
+				<h2 class="text-sm font-semibold text-muted-foreground">Waiting on author</h2>
+				<span class="text-xs text-muted-foreground mono">{waitingOnAuthor.length}</span>
 			</div>
-			<p class="text-xs text-gray-600 mb-2">Changes requested, no activity since — nothing for you to do yet.</p>
+			<p class="text-xs text-muted-foreground mb-2">Changes requested, no activity since — nothing for you to do yet.</p>
 			<div class="flex flex-wrap gap-2">
 				{#each waitingOnAuthor.slice(0, 20) as pr}
 					<button
 						type="button"
-						class="text-xs px-2 py-1 rounded border border-gray-700 bg-gray-800 text-gray-400 hover:text-gray-200 hover:border-gray-500"
+						class="text-xs px-2 py-1 rounded border bg-card text-muted-foreground hover:text-foreground hover:border-muted-foreground/50"
 						onclick={() => openPr(pr)}
 						title={pr.title}
 					>#{pr.number}</button>
@@ -260,24 +295,20 @@
 		</div>
 	{/if}
 
-	<Modal
-		bind:open={modalOpen}
-		size="xl"
-		dismissable
-		class="!max-w-[80vw] w-[80vw] bg-gray-900 border-gray-700"
-		bodyClass="text-gray-200"
-	>
-		{#snippet header()}
-			<div class="flex w-full items-center gap-3 pr-2">
-				<span class="mono text-gray-500 text-sm">#{activePr?.number ?? ''}</span>
-				<span class="text-base font-semibold text-gray-100 truncate">{activePr?.title ?? ''}</span>
-			</div>
-		{/snippet}
-		{#if activePr}
-			<PrDetail pr={activePr} />
-			<div class="text-right pt-2">
-				<a href="/prs/{activePr.number}" class="text-xs text-blue-400 hover:text-blue-300">Open full page →</a>
-			</div>
-		{/if}
-	</Modal>
+	<Dialog.Root bind:open={modalOpen}>
+		<Dialog.Content class="max-h-[85vh] w-[80vw] max-w-[80vw] overflow-y-auto sm:max-w-[80vw]">
+			<Dialog.Header>
+				<Dialog.Title class="flex w-full items-center gap-3 pr-2">
+					<span class="mono text-muted-foreground text-sm">#{activePr?.number ?? ''}</span>
+					<span class="text-base font-semibold text-foreground truncate">{activePr?.title ?? ''}</span>
+				</Dialog.Title>
+			</Dialog.Header>
+			{#if activePr}
+				<PrDetail pr={activePr} />
+				<div class="text-right pt-2">
+					<a href="/prs/{activePr.number}" class="text-xs text-primary hover:text-primary/80">Open full page →</a>
+				</div>
+			{/if}
+		</Dialog.Content>
+	</Dialog.Root>
 {/if}

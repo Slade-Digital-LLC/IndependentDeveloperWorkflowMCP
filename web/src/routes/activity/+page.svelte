@@ -4,7 +4,10 @@
 	import { fetchActivity, fetchIssues, fetchPulls, type ActivityEntry, type Issue, type PullRequest } from '$lib/api';
 	import { multiSort, toggleSort as toggle, sortArrow, sortIndex, sortArrowClass, type SortColumn } from '$lib/sort';
 	import { applyFilters, distinctValues } from '$lib/filter';
-	import { Table, TableHead, TableHeadCell, TableBody, TableBodyRow, TableBodyCell, Badge, Input, Modal } from 'flowbite-svelte';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Input } from '$lib/components/ui/input';
+	import * as Table from '$lib/components/ui/table';
+	import * as Dialog from '$lib/components/ui/dialog';
 	import IssueDetail from '$lib/components/IssueDetail.svelte';
 	import PrDetail from '$lib/components/PrDetail.svelte';
 	import TablePagination from '$lib/components/TablePagination.svelte';
@@ -90,11 +93,11 @@
 		return unsub;
 	});
 
-	function actionColor(action: string): 'blue' | 'green' | 'yellow' | 'gray' {
-		if (action === 'triage') return 'blue';
-		if (action === 'merge') return 'green';
-		if (action === 'analyze') return 'yellow';
-		return 'gray';
+	function actionBadgeClass(action: string): string {
+		if (action === 'triage') return 'bg-primary/15 text-primary';
+		if (action === 'merge') return 'border-green-500/30 bg-green-500/15 text-green-600 dark:text-green-400';
+		if (action === 'analyze') return 'border-yellow-500/30 bg-yellow-500/15 text-yellow-600 dark:text-yellow-400';
+		return '';
 	}
 
 	let issueModalOpen = $state(false);
@@ -138,122 +141,116 @@
 </svelte:head>
 
 <div class="mb-6">
-	<h2 class="text-xl font-semibold text-gray-100 mb-1">Activity Log</h2>
-	<p class="text-sm text-gray-500">Recent triage and analysis actions</p>
+	<h2 class="text-xl font-semibold text-foreground mb-1">Activity Log</h2>
+	<p class="text-sm text-muted-foreground">Recent triage and analysis actions</p>
 </div>
 
 {#if error}
-	<div class="rounded-lg border border-red-500 bg-gray-800 p-5">
-		<p class="text-red-400">{error}</p>
+	<div class="rounded-lg border border-red-500/50 bg-card p-5">
+		<p class="text-red-600 dark:text-red-400">{error}</p>
 	</div>
 {:else}
-	<div class="w-full overflow-x-auto">
-		<Table striped hoverable class="w-full">
-			<TableHead class="text-xs uppercase text-gray-400">
-				<TableHeadCell class="cursor-pointer select-none px-2 py-1.5 w-[180px]" onclick={(e: MouseEvent) => handleSort('created_at', e)}>
-					Time <span class={sortArrowClass(sortColumns, 'created_at')}>{sortArrow(sortColumns, 'created_at')}</span>{#if sortIndex(sortColumns, 'created_at') > 0}<span class="text-[0.625rem] text-blue-400 ml-0.5">{sortIndex(sortColumns, 'created_at')}</span>{/if}
-				</TableHeadCell>
-				<TableHeadCell class="cursor-pointer select-none px-2 py-1.5 w-[90px]" onclick={(e: MouseEvent) => handleSort('action', e)}>
-					Action <span class={sortArrowClass(sortColumns, 'action')}>{sortArrow(sortColumns, 'action')}</span>{#if sortIndex(sortColumns, 'action') > 0}<span class="text-[0.625rem] text-blue-400 ml-0.5">{sortIndex(sortColumns, 'action')}</span>{/if}
-				</TableHeadCell>
-				<TableHeadCell class="cursor-pointer select-none px-2 py-1.5 w-[120px]" onclick={(e: MouseEvent) => handleSort('target', e)}>
-					Target <span class={sortArrowClass(sortColumns, 'target')}>{sortArrow(sortColumns, 'target')}</span>{#if sortIndex(sortColumns, 'target') > 0}<span class="text-[0.625rem] text-blue-400 ml-0.5">{sortIndex(sortColumns, 'target')}</span>{/if}
-				</TableHeadCell>
-				<TableHeadCell class="cursor-pointer select-none px-2 py-1.5" onclick={(e: MouseEvent) => handleSort('summary', e)}>
-					Summary <span class={sortArrowClass(sortColumns, 'summary')}>{sortArrow(sortColumns, 'summary')}</span>{#if sortIndex(sortColumns, 'summary') > 0}<span class="text-[0.625rem] text-blue-400 ml-0.5">{sortIndex(sortColumns, 'summary')}</span>{/if}
-				</TableHeadCell>
-			</TableHead>
-			<TableBody>
-				<TableBodyRow class="border-b border-gray-700">
-					<TableBodyCell class="px-2 py-1"><Input type="text" bind:value={filters.created_at} placeholder="filter..." size="sm" class="!py-0.5 !px-1 text-xs" /></TableBodyCell>
-					<TableBodyCell class="px-2 py-1"><FilterSelect bind:value={filters.action} options={actionOptions} /></TableBodyCell>
-					<TableBodyCell class="px-2 py-1"><Input type="text" bind:value={filters.target} placeholder="filter..." size="sm" class="!py-0.5 !px-1 text-xs" /></TableBodyCell>
-					<TableBodyCell class="px-2 py-1"><Input type="text" bind:value={filters.summary} placeholder="filter..." size="sm" class="!py-0.5 !px-1 text-xs" /></TableBodyCell>
-				</TableBodyRow>
+	<div class="rounded-lg border">
+		<Table.Root class="w-full">
+			<Table.Header class="text-xs uppercase text-muted-foreground">
+				<Table.Row>
+					<Table.Head class="cursor-pointer select-none px-2 py-1.5 w-[180px]" onclick={(e: MouseEvent) => handleSort('created_at', e)}>
+						Time <span class={sortArrowClass(sortColumns, 'created_at')}>{sortArrow(sortColumns, 'created_at')}</span>{#if sortIndex(sortColumns, 'created_at') > 0}<span class="text-[0.625rem] text-primary ml-0.5">{sortIndex(sortColumns, 'created_at')}</span>{/if}
+					</Table.Head>
+					<Table.Head class="cursor-pointer select-none px-2 py-1.5 w-[90px]" onclick={(e: MouseEvent) => handleSort('action', e)}>
+						Action <span class={sortArrowClass(sortColumns, 'action')}>{sortArrow(sortColumns, 'action')}</span>{#if sortIndex(sortColumns, 'action') > 0}<span class="text-[0.625rem] text-primary ml-0.5">{sortIndex(sortColumns, 'action')}</span>{/if}
+					</Table.Head>
+					<Table.Head class="cursor-pointer select-none px-2 py-1.5 w-[120px]" onclick={(e: MouseEvent) => handleSort('target', e)}>
+						Target <span class={sortArrowClass(sortColumns, 'target')}>{sortArrow(sortColumns, 'target')}</span>{#if sortIndex(sortColumns, 'target') > 0}<span class="text-[0.625rem] text-primary ml-0.5">{sortIndex(sortColumns, 'target')}</span>{/if}
+					</Table.Head>
+					<Table.Head class="cursor-pointer select-none px-2 py-1.5" onclick={(e: MouseEvent) => handleSort('summary', e)}>
+						Summary <span class={sortArrowClass(sortColumns, 'summary')}>{sortArrow(sortColumns, 'summary')}</span>{#if sortIndex(sortColumns, 'summary') > 0}<span class="text-[0.625rem] text-primary ml-0.5">{sortIndex(sortColumns, 'summary')}</span>{/if}
+					</Table.Head>
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
+				<Table.Row>
+					<Table.Cell class="px-2 py-1"><Input type="text" bind:value={filters.created_at} placeholder="filter..." class="h-8 px-2 text-xs" /></Table.Cell>
+					<Table.Cell class="px-2 py-1"><FilterSelect bind:value={filters.action} options={actionOptions} /></Table.Cell>
+					<Table.Cell class="px-2 py-1"><Input type="text" bind:value={filters.target} placeholder="filter..." class="h-8 px-2 text-xs" /></Table.Cell>
+					<Table.Cell class="px-2 py-1"><Input type="text" bind:value={filters.summary} placeholder="filter..." class="h-8 px-2 text-xs" /></Table.Cell>
+				</Table.Row>
 				{#each sorted as entry}
-					<TableBodyRow class="cursor-pointer" onclick={() => openTarget(entry.target_type, entry.target_number)}>
-						<TableBodyCell class="px-2 py-1.5 text-gray-500 whitespace-nowrap text-sm">{formatTime(entry.created_at)}</TableBodyCell>
-						<TableBodyCell class="px-2 py-1.5">
-							<Badge color={actionColor(entry.action)}>{entry.action}</Badge>
-						</TableBodyCell>
-						<TableBodyCell class="px-2 py-1.5 whitespace-nowrap mono">{entry.target_type} #{entry.target_number}</TableBodyCell>
-						<TableBodyCell class="px-2 py-1.5">{entry.summary}</TableBodyCell>
-					</TableBodyRow>
+					<Table.Row class="cursor-pointer" onclick={() => openTarget(entry.target_type, entry.target_number)}>
+						<Table.Cell class="px-2 py-1.5 text-muted-foreground whitespace-nowrap text-sm">{formatTime(entry.created_at)}</Table.Cell>
+						<Table.Cell class="px-2 py-1.5">
+							<Badge variant="outline" class={actionBadgeClass(entry.action)}>{entry.action}</Badge>
+						</Table.Cell>
+						<Table.Cell class="px-2 py-1.5 whitespace-nowrap mono">{entry.target_type} #{entry.target_number}</Table.Cell>
+						<Table.Cell class="px-2 py-1.5">{entry.summary}</Table.Cell>
+					</Table.Row>
 				{:else}
-					<TableBodyRow>
-						<TableBodyCell colspan={4} class="text-center text-gray-600 py-8">
+					<Table.Row>
+						<Table.Cell colspan={4} class="text-center text-muted-foreground py-8">
 							{#if loading}
 								Loading…
 							{:else}
 								No activity recorded yet.
-								<span class="block text-xs text-gray-500 mt-1">
+								<span class="block text-xs text-muted-foreground mt-1">
 									Activity appears here once wshm applies triage labels or PR analyses —
-									sync your repos and enable features in <a href="/settings" class="text-blue-400 hover:underline">Settings → Repos</a>.
+									sync your repos and enable features in <a href="/settings" class="text-primary hover:underline">Settings → Repos</a>.
 								</span>
 							{/if}
-						</TableBodyCell>
-					</TableBodyRow>
+						</Table.Cell>
+					</Table.Row>
 				{/each}
-			</TableBody>
-		</Table>
+			</Table.Body>
+		</Table.Root>
 	</div>
-	<Modal
-		bind:open={issueModalOpen}
-		size="xl"
-		dismissable
-		class="!max-w-[80vw] w-[80vw] bg-gray-900 border-gray-700"
-		bodyClass="text-gray-200"
-	>
-		{#snippet header()}
-			<div class="flex w-full items-center gap-3 pr-2">
-				<span class="mono text-gray-500 text-sm">#{activeIssue?.number ?? ''}</span>
-				<span class="text-base font-semibold text-gray-100 truncate">
-					{activeIssue?.title ?? (detailLoading ? 'Loading…' : '')}
-				</span>
-			</div>
-		{/snippet}
-		{#if detailLoading}
-			<p class="text-gray-500 text-sm">Loading…</p>
-		{:else if detailError}
-			<p class="text-red-400 text-sm">{detailError}</p>
-		{:else if activeIssue}
-			<IssueDetail issue={activeIssue} />
-			<div class="text-right pt-2">
-				<a href="/issues/{activeIssue.number}" class="text-xs text-blue-400 hover:text-blue-300">
-					Open full page →
-				</a>
-			</div>
-		{/if}
-	</Modal>
+	<Dialog.Root bind:open={issueModalOpen}>
+		<Dialog.Content class="sm:max-w-[80vw] max-h-[85vh] overflow-y-auto">
+			<Dialog.Header>
+				<Dialog.Title class="flex w-full items-center gap-3 pr-2 text-base font-semibold">
+					<span class="mono text-muted-foreground text-sm font-normal">#{activeIssue?.number ?? ''}</span>
+					<span class="truncate">
+						{activeIssue?.title ?? (detailLoading ? 'Loading…' : '')}
+					</span>
+				</Dialog.Title>
+			</Dialog.Header>
+			{#if detailLoading}
+				<p class="text-muted-foreground text-sm">Loading…</p>
+			{:else if detailError}
+				<p class="text-red-600 dark:text-red-400 text-sm">{detailError}</p>
+			{:else if activeIssue}
+				<IssueDetail issue={activeIssue} />
+				<div class="text-right pt-2">
+					<a href="/issues/{activeIssue.number}" class="text-xs text-primary hover:underline">
+						Open full page →
+					</a>
+				</div>
+			{/if}
+		</Dialog.Content>
+	</Dialog.Root>
 
-	<Modal
-		bind:open={prModalOpen}
-		size="xl"
-		dismissable
-		class="!max-w-[80vw] w-[80vw] bg-gray-900 border-gray-700"
-		bodyClass="text-gray-200"
-	>
-		{#snippet header()}
-			<div class="flex w-full items-center gap-3 pr-2">
-				<span class="mono text-gray-500 text-sm">#{activePr?.number ?? ''}</span>
-				<span class="text-base font-semibold text-gray-100 truncate">
-					{activePr?.title ?? (detailLoading ? 'Loading…' : '')}
-				</span>
-			</div>
-		{/snippet}
-		{#if detailLoading}
-			<p class="text-gray-500 text-sm">Loading…</p>
-		{:else if detailError}
-			<p class="text-red-400 text-sm">{detailError}</p>
-		{:else if activePr}
-			<PrDetail pr={activePr} />
-			<div class="text-right pt-2">
-				<a href="/prs/{activePr.number}" class="text-xs text-blue-400 hover:text-blue-300">
-					Open full page →
-				</a>
-			</div>
-		{/if}
-	</Modal>
+	<Dialog.Root bind:open={prModalOpen}>
+		<Dialog.Content class="sm:max-w-[80vw] max-h-[85vh] overflow-y-auto">
+			<Dialog.Header>
+				<Dialog.Title class="flex w-full items-center gap-3 pr-2 text-base font-semibold">
+					<span class="mono text-muted-foreground text-sm font-normal">#{activePr?.number ?? ''}</span>
+					<span class="truncate">
+						{activePr?.title ?? (detailLoading ? 'Loading…' : '')}
+					</span>
+				</Dialog.Title>
+			</Dialog.Header>
+			{#if detailLoading}
+				<p class="text-muted-foreground text-sm">Loading…</p>
+			{:else if detailError}
+				<p class="text-red-600 dark:text-red-400 text-sm">{detailError}</p>
+			{:else if activePr}
+				<PrDetail pr={activePr} />
+				<div class="text-right pt-2">
+					<a href="/prs/{activePr.number}" class="text-xs text-primary hover:underline">
+						Open full page →
+					</a>
+				</div>
+			{/if}
+		</Dialog.Content>
+	</Dialog.Root>
 
 	<TablePagination {total} limit={pageLimit} offset={pageOffset} storageKey={PAGE_KEY} onChange={onPageChange} />
 {/if}

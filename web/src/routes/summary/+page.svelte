@@ -9,7 +9,9 @@
 		type Issue,
 		type PullRequest
 	} from '$lib/api';
-	import { Card, Badge, Modal } from 'flowbite-svelte';
+	import { Badge } from '$lib/components/ui/badge';
+	import * as Card from '$lib/components/ui/card';
+	import * as Dialog from '$lib/components/ui/dialog';
 	import IssueDetail from '$lib/components/IssueDetail.svelte';
 	import PrDetail from '$lib/components/PrDetail.svelte';
 
@@ -33,11 +35,13 @@
 		return unsub;
 	});
 
-	function priorityColor(p: string | null | undefined): 'red' | 'yellow' | 'blue' | 'dark' {
-		if (p === 'critical' || p === 'high') return 'red';
-		if (p === 'medium') return 'yellow';
-		if (p === 'low') return 'blue';
-		return 'dark';
+	function priorityBadge(p: string | null | undefined): { variant: 'outline' | 'secondary'; class: string } {
+		if (p === 'critical' || p === 'high')
+			return { variant: 'outline', class: 'border-red-500/30 bg-red-500/15 text-red-600 dark:text-red-400' };
+		if (p === 'medium')
+			return { variant: 'outline', class: 'border-yellow-500/30 bg-yellow-500/15 text-yellow-600 dark:text-yellow-400' };
+		if (p === 'low') return { variant: 'outline', class: 'bg-primary/15 text-primary' };
+		return { variant: 'secondary', class: '' };
 	}
 
 	// Bucket items by urgency. The page answers "what should I do right now?",
@@ -139,229 +143,227 @@
 
 <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
 	<div>
-		<h2 class="text-xl font-semibold text-gray-100 mb-1">Daily summary</h2>
-		<p class="text-sm text-gray-500">What needs your attention, sorted by urgency.</p>
+		<h2 class="text-xl font-semibold text-foreground mb-1">Daily summary</h2>
+		<p class="text-sm text-muted-foreground">What needs your attention, sorted by urgency.</p>
 	</div>
 	{#if summary?.timestamp}
-		<p class="text-xs text-gray-500 mono">Synced {relativeMinutes(summary.timestamp)}</p>
+		<p class="text-xs text-muted-foreground mono">Synced {relativeMinutes(summary.timestamp)}</p>
 	{/if}
 </div>
 
 {#snippet issueRow(issue: Issue)}
 	<li
-		class="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-700/50 rounded px-2 py-1"
+		class="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-2 py-1"
 		onclick={() => openIssue(issue.number)}
 		onkeydown={(e) => e.key === 'Enter' && openIssue(issue.number)}
 		role="button"
 		tabindex="0"
 	>
-		<span class="mono text-yellow-400 text-xs w-12 shrink-0">#{issue.number}</span>
+		<span class="mono text-yellow-600 dark:text-yellow-400 text-xs w-12 shrink-0">#{issue.number}</span>
 		{#if issue.priority}
-			<Badge color={priorityColor(issue.priority)} class="shrink-0">{issue.priority}</Badge>
+			{@const b = priorityBadge(issue.priority)}
+			<Badge variant={b.variant} class="shrink-0 {b.class}">{issue.priority}</Badge>
 		{/if}
-		<span class="text-gray-300 flex-1 truncate">{issue.title}</span>
+		<span class="text-foreground/90 flex-1 truncate">{issue.title}</span>
 		{#if issue.age_days > 0}
-			<span class="text-gray-500 text-xs mono shrink-0">{issue.age_days}d</span>
+			<span class="text-muted-foreground text-xs mono shrink-0">{issue.age_days}d</span>
 		{/if}
-		<span class="text-gray-600 shrink-0">→</span>
+		<span class="text-muted-foreground shrink-0">→</span>
 	</li>
 {/snippet}
 
 {#snippet prRow(pr: PullRequest)}
 	<li
-		class="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-700/50 rounded px-2 py-1"
+		class="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-2 py-1"
 		onclick={() => openPr(pr.number)}
 		onkeydown={(e) => e.key === 'Enter' && openPr(pr.number)}
 		role="button"
 		tabindex="0"
 	>
-		<span class="mono text-yellow-400 text-xs w-12 shrink-0">#{pr.number}</span>
+		<span class="mono text-yellow-600 dark:text-yellow-400 text-xs w-12 shrink-0">#{pr.number}</span>
 		{#if pr.has_conflicts}
-			<Badge color="red" class="shrink-0">conflict</Badge>
+			<Badge variant="outline" class="shrink-0 border-red-500/30 bg-red-500/15 text-red-600 dark:text-red-400">conflict</Badge>
 		{:else if pr.risk_level}
-			<Badge color={priorityColor(pr.risk_level)} class="shrink-0">{pr.risk_level}</Badge>
+			{@const b = priorityBadge(pr.risk_level)}
+			<Badge variant={b.variant} class="shrink-0 {b.class}">{pr.risk_level}</Badge>
 		{/if}
-		<span class="text-gray-300 flex-1 truncate">{pr.title}</span>
+		<span class="text-foreground/90 flex-1 truncate">{pr.title}</span>
 		{#if pr.age_days > 0}
-			<span class="text-gray-500 text-xs mono shrink-0">{pr.age_days}d</span>
+			<span class="text-muted-foreground text-xs mono shrink-0">{pr.age_days}d</span>
 		{/if}
-		<span class="text-gray-600 shrink-0">→</span>
+		<span class="text-muted-foreground shrink-0">→</span>
 	</li>
 {/snippet}
 
 {#if error}
-	<Card class="border-red-500 bg-gray-800 max-w-none">
-		<p class="text-red-400">{error}</p>
-		<p class="mt-2 text-sm text-gray-500">
-			The wshm daemon must expose <code>/api/v1/summary</code>.
-		</p>
-	</Card>
+	<Card.Root class="border-red-500">
+		<Card.Content>
+			<p class="text-red-600 dark:text-red-400">{error}</p>
+			<p class="mt-2 text-sm text-muted-foreground">
+				The wshm daemon must expose <code>/api/v1/summary</code>.
+			</p>
+		</Card.Content>
+	</Card.Root>
 {:else if summary}
 	{@const nowCount = bucketed.nowIssues.length + bucketed.nowPrs.length}
 	{@const todayCount = bucketed.todayIssues.length + bucketed.todayPrs.length}
 
 	<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
 		<!-- NOW column: red accent — drop everything and look at this. -->
-		<Card
-			class="border-l-4 {nowCount > 0
-				? 'border-l-red-500'
-				: 'border-l-gray-700'} bg-gray-800 border-gray-700 max-w-none"
+		<Card.Root
+			class="border-l-4 {nowCount > 0 ? 'border-l-red-500' : 'border-l-border'}"
 		>
-			<div class="flex items-baseline justify-between mb-3">
-				<h3 class="text-sm font-semibold {nowCount > 0 ? 'text-red-400' : 'text-gray-400'}">
-					NOW
-				</h3>
-				<span class="text-xs text-gray-500 mono">{nowCount}</span>
-			</div>
-			<p class="text-xs text-gray-500 mb-3">Critical priority &middot; conflicts &middot; high risk</p>
-			{#if nowCount === 0}
-				<p class="text-sm text-gray-600 italic">Nothing urgent. Nice.</p>
-			{:else}
-				<ul class="space-y-1">
-					{#each bucketed.nowIssues as issue (issue.number)}
-						{@render issueRow(issue)}
-					{/each}
-					{#each bucketed.nowPrs as pr (pr.number)}
-						{@render prRow(pr)}
-					{/each}
-				</ul>
-			{/if}
-		</Card>
+			<Card.Content>
+				<div class="flex items-baseline justify-between mb-3">
+					<h3 class="text-sm font-semibold {nowCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}">
+						NOW
+					</h3>
+					<span class="text-xs text-muted-foreground mono">{nowCount}</span>
+				</div>
+				<p class="text-xs text-muted-foreground mb-3">Critical priority &middot; conflicts &middot; high risk</p>
+				{#if nowCount === 0}
+					<p class="text-sm text-muted-foreground italic">Nothing urgent. Nice.</p>
+				{:else}
+					<ul class="space-y-1">
+						{#each bucketed.nowIssues as issue (issue.number)}
+							{@render issueRow(issue)}
+						{/each}
+						{#each bucketed.nowPrs as pr (pr.number)}
+							{@render prRow(pr)}
+						{/each}
+					</ul>
+				{/if}
+			</Card.Content>
+		</Card.Root>
 
 		<!-- TODAY column: amber accent — work through these next. -->
-		<Card
-			class="border-l-4 {todayCount > 0
-				? 'border-l-amber-500'
-				: 'border-l-gray-700'} bg-gray-800 border-gray-700 max-w-none"
+		<Card.Root
+			class="border-l-4 {todayCount > 0 ? 'border-l-amber-500' : 'border-l-border'}"
 		>
-			<div class="flex items-baseline justify-between mb-3">
-				<h3 class="text-sm font-semibold {todayCount > 0 ? 'text-amber-400' : 'text-gray-400'}">
-					TODAY
-				</h3>
-				<span class="text-xs text-gray-500 mono">{todayCount}</span>
-			</div>
-			<p class="text-xs text-gray-500 mb-3">Medium priority &middot; PRs awaiting review</p>
-			{#if todayCount === 0}
-				<p class="text-sm text-gray-600 italic">Inbox zero on the medium list.</p>
-			{:else}
-				<ul class="space-y-1">
-					{#each bucketed.todayIssues as issue (issue.number)}
-						{@render issueRow(issue)}
-					{/each}
-					{#each bucketed.todayPrs as pr (pr.number)}
-						{@render prRow(pr)}
-					{/each}
-				</ul>
-			{/if}
-		</Card>
+			<Card.Content>
+				<div class="flex items-baseline justify-between mb-3">
+					<h3 class="text-sm font-semibold {todayCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}">
+						TODAY
+					</h3>
+					<span class="text-xs text-muted-foreground mono">{todayCount}</span>
+				</div>
+				<p class="text-xs text-muted-foreground mb-3">Medium priority &middot; PRs awaiting review</p>
+				{#if todayCount === 0}
+					<p class="text-sm text-muted-foreground italic">Inbox zero on the medium list.</p>
+				{:else}
+					<ul class="space-y-1">
+						{#each bucketed.todayIssues as issue (issue.number)}
+							{@render issueRow(issue)}
+						{/each}
+						{#each bucketed.todayPrs as pr (pr.number)}
+							{@render prRow(pr)}
+						{/each}
+					</ul>
+				{/if}
+			</Card.Content>
+		</Card.Root>
 
 		<!-- THIS WEEK column: counters — context, not action. -->
-		<Card class="border-l-4 border-l-gray-700 bg-gray-800 border-gray-700 max-w-none">
-			<div class="flex items-baseline justify-between mb-3">
-				<h3 class="text-sm font-semibold text-gray-300">THIS WEEK</h3>
-				<span class="text-xs text-gray-500 mono">backlog</span>
-			</div>
-			<p class="text-xs text-gray-500 mb-3">Volume across the repo, not an action list.</p>
-			<dl class="space-y-2 text-sm">
-				<div class="flex items-center justify-between">
-					<dt class="text-gray-400">Open issues</dt>
-					<dd>
-						<a href="/issues" class="mono text-blue-400 hover:text-blue-300">
-							{summary.open_issues}
-						</a>
-					</dd>
+		<Card.Root class="border-l-4 border-l-border">
+			<Card.Content>
+				<div class="flex items-baseline justify-between mb-3">
+					<h3 class="text-sm font-semibold text-foreground/90">THIS WEEK</h3>
+					<span class="text-xs text-muted-foreground mono">backlog</span>
 				</div>
-				<div class="flex items-center justify-between">
-					<dt class="text-gray-400">Untriaged</dt>
-					<dd>
-						<a href="/triage" class="mono text-blue-400 hover:text-blue-300">
-							{summary.untriaged_issues}
-						</a>
-					</dd>
-				</div>
-				<div class="flex items-center justify-between">
-					<dt class="text-gray-400">Open PRs</dt>
-					<dd>
-						<a href="/prs" class="mono text-blue-400 hover:text-blue-300">{summary.open_prs}</a>
-					</dd>
-				</div>
-				<div class="flex items-center justify-between">
-					<dt class="text-gray-400">Unanalyzed</dt>
-					<dd>
-						<a href="/prs" class="mono text-blue-400 hover:text-blue-300">
-							{summary.unanalyzed_prs}
-						</a>
-					</dd>
-				</div>
-				<div class="flex items-center justify-between">
-					<dt class="text-gray-400">Conflicts</dt>
-					<dd>
-						<span
-							class="mono {summary.conflicts > 0 ? 'text-red-400' : 'text-gray-500'}"
-						>{summary.conflicts}</span>
-					</dd>
-				</div>
-			</dl>
-		</Card>
+				<p class="text-xs text-muted-foreground mb-3">Volume across the repo, not an action list.</p>
+				<dl class="space-y-2 text-sm">
+					<div class="flex items-center justify-between">
+						<dt class="text-muted-foreground">Open issues</dt>
+						<dd>
+							<a href="/issues" class="mono text-primary hover:text-primary/80">
+								{summary.open_issues}
+							</a>
+						</dd>
+					</div>
+					<div class="flex items-center justify-between">
+						<dt class="text-muted-foreground">Untriaged</dt>
+						<dd>
+							<a href="/triage" class="mono text-primary hover:text-primary/80">
+								{summary.untriaged_issues}
+							</a>
+						</dd>
+					</div>
+					<div class="flex items-center justify-between">
+						<dt class="text-muted-foreground">Open PRs</dt>
+						<dd>
+							<a href="/prs" class="mono text-primary hover:text-primary/80">{summary.open_prs}</a>
+						</dd>
+					</div>
+					<div class="flex items-center justify-between">
+						<dt class="text-muted-foreground">Unanalyzed</dt>
+						<dd>
+							<a href="/prs" class="mono text-primary hover:text-primary/80">
+								{summary.unanalyzed_prs}
+							</a>
+						</dd>
+					</div>
+					<div class="flex items-center justify-between">
+						<dt class="text-muted-foreground">Conflicts</dt>
+						<dd>
+							<span
+								class="mono {summary.conflicts > 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}"
+							>{summary.conflicts}</span>
+						</dd>
+					</div>
+				</dl>
+			</Card.Content>
+		</Card.Root>
 	</div>
 {:else}
-	<p class="text-gray-500">Loading…</p>
+	<p class="text-muted-foreground">Loading…</p>
 {/if}
 
-<Modal
-	bind:open={issueModalOpen}
-	size="xl"
-	dismissable
-	class="!max-w-[80vw] w-[80vw] bg-gray-900 border-gray-700"
-	bodyClass="text-gray-200"
->
-	{#snippet header()}
-		<div class="flex w-full items-center gap-3 pr-2">
-			<span class="mono text-gray-500 text-sm">#{activeIssue?.number ?? ''}</span>
-			<span class="text-base font-semibold text-gray-100 truncate">
-				{activeIssue?.title ?? (issueLoading ? 'Loading…' : '')}
-			</span>
-		</div>
-	{/snippet}
-	{#if issueLoading}
-		<p class="text-gray-500 text-sm">Loading…</p>
-	{:else if issueError}
-		<p class="text-red-400 text-sm">{issueError}</p>
-	{:else if activeIssue}
-		<IssueDetail issue={activeIssue} />
-		<div class="text-right pt-2">
-			<a href="/issues/{activeIssue.number}" class="text-xs text-blue-400 hover:text-blue-300">
-				Open full page →
-			</a>
-		</div>
-	{/if}
-</Modal>
+<Dialog.Root bind:open={issueModalOpen}>
+	<Dialog.Content class="max-h-[85vh] w-[80vw] max-w-[80vw] overflow-y-auto sm:max-w-[80vw]">
+		<Dialog.Header>
+			<Dialog.Title class="flex w-full items-center gap-3 pr-2">
+				<span class="mono text-muted-foreground text-sm">#{activeIssue?.number ?? ''}</span>
+				<span class="text-base font-semibold text-foreground truncate">
+					{activeIssue?.title ?? (issueLoading ? 'Loading…' : '')}
+				</span>
+			</Dialog.Title>
+		</Dialog.Header>
+		{#if issueLoading}
+			<p class="text-muted-foreground text-sm">Loading…</p>
+		{:else if issueError}
+			<p class="text-red-600 dark:text-red-400 text-sm">{issueError}</p>
+		{:else if activeIssue}
+			<IssueDetail issue={activeIssue} />
+			<div class="text-right pt-2">
+				<a href="/issues/{activeIssue.number}" class="text-xs text-primary hover:text-primary/80">
+					Open full page →
+				</a>
+			</div>
+		{/if}
+	</Dialog.Content>
+</Dialog.Root>
 
-<Modal
-	bind:open={prModalOpen}
-	size="xl"
-	dismissable
-	class="!max-w-[80vw] w-[80vw] bg-gray-900 border-gray-700"
-	bodyClass="text-gray-200"
->
-	{#snippet header()}
-		<div class="flex w-full items-center gap-3 pr-2">
-			<span class="mono text-gray-500 text-sm">#{activePr?.number ?? ''}</span>
-			<span class="text-base font-semibold text-gray-100 truncate">
-				{activePr?.title ?? (prLoading ? 'Loading…' : '')}
-			</span>
-		</div>
-	{/snippet}
-	{#if prLoading}
-		<p class="text-gray-500 text-sm">Loading…</p>
-	{:else if prError}
-		<p class="text-red-400 text-sm">{prError}</p>
-	{:else if activePr}
-		<PrDetail pr={activePr} />
-		<div class="text-right pt-2">
-			<a href="/prs/{activePr.number}" class="text-xs text-blue-400 hover:text-blue-300">
-				Open full page →
-			</a>
-		</div>
-	{/if}
-</Modal>
+<Dialog.Root bind:open={prModalOpen}>
+	<Dialog.Content class="max-h-[85vh] w-[80vw] max-w-[80vw] overflow-y-auto sm:max-w-[80vw]">
+		<Dialog.Header>
+			<Dialog.Title class="flex w-full items-center gap-3 pr-2">
+				<span class="mono text-muted-foreground text-sm">#{activePr?.number ?? ''}</span>
+				<span class="text-base font-semibold text-foreground truncate">
+					{activePr?.title ?? (prLoading ? 'Loading…' : '')}
+				</span>
+			</Dialog.Title>
+		</Dialog.Header>
+		{#if prLoading}
+			<p class="text-muted-foreground text-sm">Loading…</p>
+		{:else if prError}
+			<p class="text-red-600 dark:text-red-400 text-sm">{prError}</p>
+		{:else if activePr}
+			<PrDetail pr={activePr} />
+			<div class="text-right pt-2">
+				<a href="/prs/{activePr.number}" class="text-xs text-primary hover:text-primary/80">
+					Open full page →
+				</a>
+			</div>
+		{/if}
+	</Dialog.Content>
+</Dialog.Root>

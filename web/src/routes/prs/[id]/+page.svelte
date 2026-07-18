@@ -2,7 +2,7 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { fetchPulls, type PullRequest } from '$lib/api';
-	import { Card } from 'flowbite-svelte';
+	import * as Card from '$lib/components/ui/card';
 	import PrDetail from '$lib/components/PrDetail.svelte';
 
 	let pr: PullRequest | null = $state(null);
@@ -25,18 +25,18 @@
 </svelte:head>
 
 <div class="mb-4">
-	<a href="/prs" class="text-sm text-blue-400 hover:text-blue-300">← Back to Pull Requests</a>
+	<a href="/prs" class="text-sm text-primary hover:underline">← Back to Pull Requests</a>
 </div>
 
 {#if error}
-	<Card class="bg-gray-800 max-w-none"><p class="text-red-400">{error}</p></Card>
+	<Card.Root><Card.Content><p class="text-red-600 dark:text-red-400">{error}</p></Card.Content></Card.Root>
 {:else if pr}
 	<div class="mb-4">
-		<h2 class="text-xl font-semibold text-gray-100">
-			<span class="mono text-gray-500">#{pr.number}</span> {pr.title}
+		<h2 class="text-xl font-semibold text-foreground">
+			<span class="mono text-muted-foreground">#{pr.number}</span> {pr.title}
 		</h2>
 	</div>
 	<PrDetail {pr} />
 {:else}
-	<p class="text-gray-500">Loading...</p>
+	<p class="text-muted-foreground">Loading...</p>
 {/if}
