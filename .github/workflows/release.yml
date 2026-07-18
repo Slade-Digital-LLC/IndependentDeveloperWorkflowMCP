@@ -260,23 +260,30 @@ jobs:
               -f content="$CONTENT"
           fi
 
+  # Multi-arch image built on NATIVE runners (amd64 on x86, arm64 on
+  # ubuntu-24.04-arm). Each leg pushes by digest; the merge job stitches
+  # them into one manifest list. This replaces the previous single-runner
+  # QEMU build, whose emulated arm64 musl compile of OpenSSL/libgit2 took
+  # ~2h — native runners bring it back to ~10 min.
   docker:
-    name: Build and push Docker image
+    name: Build Docker image (${{ matrix.platform }})
     needs: [build-linux-x86, build-linux-arm]
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
 
-      - name: Get version
-        id: version
+      - name: Prepare platform tag
         run: |
-          TAG="${{ github.ref_name || github.event.inputs.tag }}"
-          VERSION="${TAG#v}"
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+          platform="${{ matrix.platform }}"
+          echo "PLATFORM_PAIR=${platform//\//-}" >> "$GITHUB_ENV"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -287,17 +294,66 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build and push by digest
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            innovtech/wshm:${{ steps.version.outputs.version }}
-            innovtech/wshm:latest
+          platforms: ${{ matrix.platform }}
           labels: |
             org.opencontainers.image.source=https://github.com/wshm-dev/wshm
             org.opencontainers.image.description=wshm — AI-powered GitHub agent
             org.opencontainers.image.licenses=SSPL-1.0
-            org.opencontainers.image.version=${{ steps.version.outputs.version }}
+          outputs: type=image,name=innovtech/wshm,push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export digest
+        run: |
+          mkdir -p "${{ runner.temp }}/digests"
+          digest="${{ steps.build.outputs.digest }}"
+          touch "${{ runner.temp }}/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ env.PLATFORM_PAIR }}
+          path: ${{ runner.temp }}/digests/*
+          retention-days: 1
+          if-no-files-found: error
+
+  docker-merge:
+    name: Push Docker manifest
+    needs: [docker]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get version
+        id: version
+        run: |
+          TAG="${{ github.ref_name || github.event.inputs.tag }}"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Create manifest list and push
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          docker buildx imagetools create \
+            -t innovtech/wshm:${{ steps.version.outputs.version }} \
+            -t innovtech/wshm:latest \
+            $(printf 'innovtech/wshm@sha256:%s ' *)
+
+      - name: Inspect image
+        run: docker buildx imagetools inspect innovtech/wshm:${{ steps.version.outputs.version }}

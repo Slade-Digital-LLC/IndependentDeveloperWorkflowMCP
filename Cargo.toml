@@ -100,7 +100,10 @@ futures = "0.3.32"
 ratatui = "0.29"
 crossterm = "0.28"
 
-# musl (Alpine) has no system OpenSSL for libgit2's HTTPS transport: build the
-# vendored copy there, and only there — glibc/macOS/Windows builds are unaffected.
-[target.'cfg(target_env = "musl")'.dependencies]
+# libgit2's HTTPS transport pulls openssl-sys, which needs a system OpenSSL.
+# Two cases lack one: musl/Alpine (no system lib), and cross-compiling the
+# x86_64 macOS slice on an arm64 runner (no x86_64 OpenSSL on the host). Build
+# the vendored copy from source there — glibc-Linux/Windows and the native
+# arm64 macOS build keep using their platform lib.
+[target.'cfg(any(target_env = "musl", target_os = "macos"))'.dependencies]
 openssl = { version = "0.10", features = ["vendored"] }
