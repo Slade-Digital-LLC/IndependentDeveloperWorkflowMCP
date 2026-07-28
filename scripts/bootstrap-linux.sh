@@ -101,6 +101,9 @@ fi
     bun install --frozen-lockfile
     bun run build
 )
+# The upstream Vite build recreates src/web-dist and removes its tracked
+# sentinel. Restore the zero-byte marker so a successful build leaves Git clean.
+touch "${DESTINATION}/src/web-dist/.gitkeep"
 
 (
     cd "${DESTINATION}"

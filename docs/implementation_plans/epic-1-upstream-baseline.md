@@ -98,6 +98,7 @@ Relied upon unchanged:
 | `cargo test --locked` | unit/integration | Not run | Pending VM |
 | `cargo clippy --locked -- -D warnings` | lint | Not run | Pending VM |
 | `cargo audit ...` | advisory | Not run | Pending VM |
+| `bootstrap-linux.sh --skip-build` rerun | idempotence | Failed, then pending rerun | First run exposed upstream web build deleting tracked `src/web-dist/.gitkeep`; bootstrap now restores the sentinel |
 
 ### Coverage and Remaining Risk
 
