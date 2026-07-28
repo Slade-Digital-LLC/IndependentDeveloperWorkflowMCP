@@ -2,7 +2,7 @@
 
 ## Authority and scope
 
-These rules apply to upstream synchronization, dependencies, Linux setup, VirtualBox validation, packaging, and deployment. The product requirements in `docs/idwp-spec` remain authoritative.
+These rules apply to upstream synchronization, dependencies, Linux setup, VirtualBox validation, packaging, deployment, and GitHub pull-request review workflow. The product requirements in `docs/idwp-spec` remain authoritative.
 
 ## Upstream baseline
 
@@ -46,6 +46,13 @@ Do not declare Linux installation verified from Windows, WSL, a container, or in
 - Never place PowerShell backtick newline sequences inside a single-quoted string; PowerShell preserves them literally and GitHub renders them as text.
 - Before posting or updating a review comment, inspect the serialized body and confirm paragraph breaks are actual newline characters.
 - After posting the first comment in a batch, read it back from GitHub and verify its rendered body before posting the remainder.
+
+## GitHub review conversation resolution
+
+- A workflow label or written status such as `Closed` does not replace GitHub's native Resolve Conversation action.
+- After the independent reviewer accepts a finding, resolve its GitHub review thread through the native thread-resolution API, equivalent to clicking **Resolve conversation**.
+- Before completing or merging the pull request, query all review threads with thread-aware GitHub GraphQL data, follow cursor pagination until `pageInfo.hasNextPage` is false, and confirm every accepted or no-finding conversation reports `isResolved: true`.
+- Do not claim review completion while any applicable conversation remains natively unresolved.
 
 ## VirtualBox test appliance
 
