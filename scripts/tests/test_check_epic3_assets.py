@@ -74,6 +74,52 @@ class AssetGateTests(unittest.TestCase):
             self.assertEqual(document["specVersion"], "1.5")
             self.assertEqual(document["components"], items)
 
+    def test_components_preserve_custom_license_and_encode_scoped_npm_purl(self) -> None:
+        packages = [
+            {
+                "id": f"path+file:///workspace/{name}#0.1.0",
+                "name": name,
+                "version": "0.1.0",
+                "license": "SSPL-1.0" if name == "wshm-core" else None,
+                "license_file": None,
+            }
+            for name in ASSETS.REQUIRED_WORKSPACE
+        ]
+        metadata = {
+            "workspace_members": [package["id"] for package in packages],
+            "packages": packages,
+        }
+        package_lock = {
+            "packages": {
+                "node_modules/@sveltejs/kit": {
+                    "name": "@sveltejs/kit",
+                    "version": "2.0.0",
+                    "license": "MIT",
+                }
+            }
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            web = root / "web"
+            web.mkdir()
+            (web / "package-lock.json").write_text(
+                json.dumps(package_lock), encoding="utf-8"
+            )
+            with mock.patch.object(ASSETS, "ROOT", root):
+                components = ASSETS.components(metadata)
+        root_component = next(
+            component for component in components if component["name"] == "wshm-core"
+        )
+        self.assertEqual(
+            root_component["licenses"],
+            [{"name": "Custom SSPL-derived upstream license (see LICENSE)"}],
+        )
+        self.assertNotIn("SSPL-1.0", json.dumps(root_component))
+        npm_component = next(
+            component for component in components if component["name"] == "@sveltejs/kit"
+        )
+        self.assertEqual(npm_component["purl"], "pkg:npm/%40sveltejs/kit@2.0.0")
+
     def config_root(self, content: str):
         temporary = tempfile.TemporaryDirectory()
         root = pathlib.Path(temporary.name)

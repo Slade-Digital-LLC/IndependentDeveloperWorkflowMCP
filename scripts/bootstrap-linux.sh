@@ -176,6 +176,17 @@ else
     checkout_requested_ref "${DESTINATION}" 1
 fi
 
+if ((!SKIP_AUDIT)); then
+    audit_version=""
+    if command -v cargo-audit >/dev/null 2>&1; then
+        audit_version="$(cargo-audit --version)"
+    fi
+    if [[ "${audit_version}" != "cargo-audit ${CARGO_AUDIT_VERSION}"* ]]; then
+        cargo install cargo-audit --locked \
+            --version "${CARGO_AUDIT_VERSION}" --force
+    fi
+fi
+
 if ((SKIP_BUILD)); then
     echo "Bootstrap complete at ${DESTINATION}; build skipped."
     exit 0
@@ -193,12 +204,6 @@ touch "${DESTINATION}/src/web-dist/.gitkeep"
 (
     cd "${DESTINATION}"
     if ((!SKIP_AUDIT)); then
-        audit_version="$(cargo-audit --version 2>/dev/null || true)"
-        if ! command -v cargo-audit >/dev/null 2>&1 ||
-            [[ "${audit_version}" != "cargo-audit ${CARGO_AUDIT_VERSION}"* ]]; then
-            cargo install cargo-audit --locked \
-                --version "${CARGO_AUDIT_VERSION}" --force
-        fi
         bash scripts/validate-quality.sh
     else
         bash scripts/validate-quality.sh --skip-advisory

@@ -90,6 +90,30 @@ fn missing_and_unclassified_packages_fail_closed() {
     assert!(errors.iter().any(|error| error.contains("unclassified")));
 }
 
+#[test]
+fn empty_unclassified_idwp_package_is_rejected() {
+    let mut packages = required_packages();
+    packages.insert("idwp-empty".to_owned());
+    assert_eq!(
+        validate_edges(&packages, &BTreeSet::new()).unwrap_err(),
+        ["unclassified workspace package: idwp-empty"]
+    );
+}
+
+#[test]
+fn unclassified_upstream_package_to_idwp_is_rejected() {
+    let mut packages = required_packages();
+    packages.insert("wshm-extra".to_owned());
+    let edges = BTreeSet::from([DependencyEdge {
+        from: "wshm-extra".to_owned(),
+        to: "idwp-application".to_owned(),
+    }]);
+    assert_eq!(
+        validate_edges(&packages, &edges).unwrap_err(),
+        ["unclassified workspace package: wshm-extra"]
+    );
+}
+
 fn required_packages() -> BTreeSet<String> {
     [
         "idwp-domain",

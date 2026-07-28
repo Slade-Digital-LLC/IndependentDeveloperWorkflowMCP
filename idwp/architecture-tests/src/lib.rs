@@ -46,15 +46,17 @@ pub fn validate_edges(
             errors.push(format!("required workspace package is missing: {required}"));
         }
     }
+    for package in packages {
+        if !allowed.contains_key(package.as_str()) {
+            errors.push(format!("unclassified workspace package: {package}"));
+        }
+    }
     for edge in edges {
         let internal = edge.to.starts_with("idwp-") || edge.to == "wshm-core";
         if !internal {
             continue;
         }
         let Some(destinations) = allowed.get(edge.from.as_str()) else {
-            if edge.from.starts_with("idwp-") {
-                errors.push(format!("unclassified IDWP package: {}", edge.from));
-            }
             continue;
         };
         if !destinations.contains(edge.to.as_str()) {

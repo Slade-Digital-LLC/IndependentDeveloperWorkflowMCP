@@ -175,11 +175,13 @@ provider credentials or external writes are needed.
 
 Added:
 
-- `idwp/architecture-tests/tests/workspace_boundaries.rs` - five integration
+- `idwp/architecture-tests/tests/workspace_boundaries.rs` - seven integration
   tests for the valid graph, reversed domain/provider edge, IDWP-to-upstream,
-  upstream-to-IDWP, missing package, and unknown package failure.
-- `scripts/tests/test_check_epic3_assets.py` - five deterministic unit tests for
-  missing assets, valid/invalid/secret-like TOML, and stable CycloneDX output.
+  upstream-to-IDWP, missing package, empty unknown IDWP package, and
+  unclassified upstream-package failure.
+- `scripts/tests/test_check_epic3_assets.py` - six deterministic unit tests for
+  missing assets, valid/invalid/secret-like TOML, stable CycloneDX output,
+  custom upstream licensing, and scoped npm PURL encoding.
 
 Relied upon:
 
@@ -204,24 +206,29 @@ Relied upon:
 | Epic 2 bootstrap gates and black box | compatibility integration | Passed | 7 tests; auth/protocol/restart/discovery; cleanup passed |
 | Canonical Debian bootstrap | live integration | Passed | exact `fa10dfcfeee3a086b65ea2bfbfe092df2633f1a1`; clean checkout |
 | Bootstrap idempotent rerun | installer | Passed | exact commit with `--skip-build`; no package/tool/source churn |
+| Reviewer-fix Python regression suite | asset gate unit | Passed | 6 tests |
+| Reviewer-fix host Cargo suite | Rust regression | Blocked | Cargo is not installed on the ordinary Windows host; exact-head Debian run required |
 
 ### Coverage and Remaining Risk
 
 Structural policy and asset/config/SBOM validation have positive and negative
 branch coverage. Skeletal crates intentionally contain no domain behavior.
-CI runner behavior remains pending the feature PR. The advisory database,
+The initial feature head passed Linux and Security CI while the remaining jobs
+were still running when reviewer fixes began. The advisory database,
 frontend build, canonical local script, SBOM/license/config checks, and Linux
 setup passed in Debian. Cargo coverage tooling is not installed; meaningful new
 branches are covered directly by ten focused tests.
 
 ### Final Verification Status
 
-- Focused tests: Passed - 5 architecture and 5 asset-gate tests.
+- Focused tests: Passed before review - 5 architecture and 5 asset-gate tests;
+  reviewer-fix Python suite passed 6 tests and Rust rerun awaits Debian.
 - Broader regression suite: Passed - 81 upstream and 7 Epic 2 tests.
 - Integration tests: Passed - canonical quality and Epic 2 black box in Debian.
 - Coverage: Not run - coverage tool unavailable; branch mapping reviewed.
 - Live verification: Passed - exact-head Debian bootstrap and idempotent rerun.
-- Remaining unverified areas: GitHub-hosted CI execution and independent review.
+- Remaining unverified areas: reviewer re-check, final-head GitHub CI, and
+  final-head Debian rerun.
 
 ## Delegation Record
 
@@ -243,9 +250,23 @@ remains.
 
 ## Review, Check-In, and Release Record
 
-- Feature commits: `e625558`, `07f8c8a`, `918485c`, `fa10dfc`
-- Feature PR to `develop`: pending
-- Independent review threads: pending
+- Feature commits: `e625558`, `07f8c8a`, `918485c`, `fa10dfc`, `94034b2`
+- Feature PR to `develop`: [#10](https://github.com/Slade-Digital-LLC/IndependentDeveloperWorkflowMCP/pull/10)
+- Independent reviewer: `/root/epic3_independent_review`, actual runtime
+  reported as GPT-5 Codex; read-only full-diff review at `94034b2`.
+- `Code Review 001` Active -> Pending: reject empty unclassified IDWP packages;
+  accepted, package-level classification and regression test implemented.
+- `Code Review 002` Active -> Pending: install pinned audit tooling before the
+  `--skip-build` exit; accepted and reordered.
+- `Code Review 003` Active -> Pending: align canonical all-feature tests and
+  Clippy with the plan; accepted and implemented.
+- `Code Review 004` Active -> Pending: do not emit the custom upstream license
+  as SPDX `SSPL-1.0`; accepted, named custom-license output and regression
+  assertion implemented.
+- `Code Review 005` Active -> Pending: percent-encode scoped npm PURLs; accepted
+  and covered by regression.
+- `Code Review 006` Active -> Pending: reject unclassified upstream-to-IDWP
+  edges; accepted and covered by regression.
 - Native resolution verification: pending
 - Release PR to `master`: pending
 - Sync-back PR to `develop`: pending

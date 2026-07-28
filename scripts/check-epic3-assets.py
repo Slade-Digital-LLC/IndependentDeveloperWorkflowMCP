@@ -10,6 +10,7 @@ import re
 import subprocess
 import sys
 import tomllib
+import urllib.parse
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 REQUIRED_FILES = (
@@ -124,7 +125,11 @@ def components(metadata: dict) -> list[dict]:
             "version": package["version"],
             "purl": f"pkg:cargo/{package['name']}@{package['version']}",
         }
-        if license_value:
+        if package["name"] == "wshm-core":
+            component["licenses"] = [
+                {"name": "Custom SSPL-derived upstream license (see LICENSE)"}
+            ]
+        elif license_value:
             component["licenses"] = [{"expression": license_value}]
         elif license_file:
             component["licenses"] = [{"name": f"License file: {license_file}"}]
@@ -143,7 +148,7 @@ def components(metadata: dict) -> list[dict]:
                 "type": "library",
                 "name": name,
                 "version": version,
-                "purl": f"pkg:npm/{name}@{version}",
+                "purl": f"pkg:npm/{urllib.parse.quote(name, safe='/')}@{version}",
                 "licenses": [{"expression": license_value}],
             }
         )

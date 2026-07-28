@@ -20,8 +20,8 @@ cd "${ROOT}"
 cargo metadata --locked --format-version 1 >/dev/null
 cargo fmt --all -- --check
 cargo build --workspace --all-targets --locked
-cargo test --workspace --locked
-cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo test --workspace --all-features --locked
+cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 python3 -m unittest discover -s scripts/tests -p 'test_*.py'
 
 if ((RUN_ADVISORY)); then
