@@ -66,7 +66,7 @@ external production data is changed.
   GitHub PR review.
 - [x] [Model: openai/gpt-5-codex] Obtain final independent acceptance after
   corrections.
-- [ ] [Model: openai/gpt-5] Commit and push the feature branch.
+- [x] [Model: openai/gpt-5] Commit and push the feature branch.
 - [ ] [Model: openai/gpt-5] Open, review, and merge the feature PR into
   `develop`.
 - [ ] [Model: openai/gpt-5] Promote the single reviewed feature to `master`
@@ -166,8 +166,9 @@ do {
 ## Check-In Tracking
 
 - Feature branch: `feature/native-review-thread-resolution`
-- Feature commit: pending
-- Feature PR to `develop`: pending
+- Feature commit: `e1b6e7b`
+- Feature PR to `develop`: PR #4 open; native review thread resolved and
+  GraphQL-verified
 - Independent review: accepted with no findings after corrections
 - Release PR to `master`: pending
 - Sync-back PR to `develop`: pending
