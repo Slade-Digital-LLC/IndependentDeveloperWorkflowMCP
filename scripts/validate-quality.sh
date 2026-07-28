@@ -29,7 +29,7 @@ if ((RUN_ADVISORY)); then
         echo "cargo-audit 0.22.2 is required" >&2
         exit 1
     }
-    [[ "$(cargo audit --version)" == "cargo-audit 0.22.2" ]] || {
+    cargo audit --version | grep -Eq '^cargo-audit 0\.22\.2([[:space:]]|$)' || {
         echo "cargo-audit 0.22.2 is required" >&2
         exit 1
     }
