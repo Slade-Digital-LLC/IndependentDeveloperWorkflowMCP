@@ -48,7 +48,13 @@ checkout_requested_ref() {
 
     if git ls-remote --exit-code --heads "${REPOSITORY_URL}" \
         "refs/heads/${PROJECT_REF}" >/dev/null 2>&1; then
-        git -C "${checkout_path}" fetch --depth 1 origin \
+        if ((existing_checkout)) &&
+            [[ "$(git -C "${checkout_path}" rev-parse \
+                --is-shallow-repository)" == "true" ]]; then
+            git -C "${checkout_path}" fetch --unshallow origin
+        fi
+
+        git -C "${checkout_path}" fetch origin \
             "refs/heads/${PROJECT_REF}:refs/remotes/origin/${PROJECT_REF}"
 
         if ((existing_checkout)) &&
