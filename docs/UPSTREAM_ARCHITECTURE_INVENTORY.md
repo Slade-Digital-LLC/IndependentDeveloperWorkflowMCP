@@ -16,6 +16,8 @@ Baseline: `wshm-dev/wshm@96a8599996be04acdffbc157a5e4e76a31b6c84f` (`0.31.7`).
 | Deployment | Local binary, Docker Compose, systemd generation, Dockerfile, Kubernetes, Helm, and Kustomize |
 | Tests | 81 Rust unit/async test attributes at inspection; CI runs Linux/Windows build, tests, fmt, Clippy, security scans, and Linux smoke |
 
+The repository defines `bun run check`, but at the pinned revision it fails with 12 errors and 5 warnings across five Svelte files. Upstream CI does not invoke that command; it invokes the frontend build only.
+
 ## Provider capability matrix before IDWP changes
 
 | Capability | GitHub | GitLab | Gitea/Forgejo | Azure DevOps |
@@ -66,4 +68,3 @@ Baseline: `wshm-dev/wshm@96a8599996be04acdffbc157a5e4e76a31b6c84f` (`0.31.7`).
 ## Architecture decision
 
 Continue only as a conditional evaluation baseline. The Rust/SQLite/Axum/Svelte code provides useful primitives, but the custom license and Pro-only boundaries materially weaken the original adoption assumptions. Before Epic 3 commits to extension architecture, obtain legal approval and complete Epic 2 interface probes. If competitive hosted use or required Pro-only source cannot be authorized, exit wshm and select a permissively licensed foundation.
-

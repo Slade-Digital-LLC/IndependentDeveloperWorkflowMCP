@@ -99,7 +99,6 @@ fi
 (
     cd "${DESTINATION}/web"
     bun install --frozen-lockfile
-    bun run check
     bun run build
 )
 
@@ -124,4 +123,3 @@ fi
 
 printf 'Bootstrap and validation complete.\nRevision: %s\nPath: %s\n' \
     "$(git -C "${DESTINATION}" rev-parse HEAD)" "${DESTINATION}"
-

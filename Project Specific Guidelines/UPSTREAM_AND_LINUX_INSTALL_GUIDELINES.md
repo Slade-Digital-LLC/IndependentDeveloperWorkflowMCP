@@ -33,7 +33,7 @@ For every dependency, toolchain, build-command, or source-layout change:
 2. update `docs/IDWP_LINUX_DEVELOPMENT.md`;
 3. update the active implementation plan;
 4. run the script in a clean supported Linux VM;
-5. run web checks/build, Rust format, build, tests, Clippy, and applicable license/advisory checks;
+5. run the upstream web build, Rust format, build, tests, Clippy, and applicable license/advisory checks;
 6. record the distribution, tool versions, exact commit, commands, and results.
 
 Do not declare Linux installation verified from Windows, WSL, a container, or inspection alone when a VirtualBox run is required.
@@ -52,4 +52,3 @@ Do not declare Linux installation verified from Windows, WSL, a container, or in
 - Treat upstream's `LICENSE` as a custom SSPL-derived source-available license unless qualified legal counsel determines otherwise.
 - Do not remove or weaken the upstream license, service-source obligations, competitive-service restriction, copyright, or trademark terms.
 - Before external hosted-service use, distribution, or commercial launch, require legal review and record the outcome in `LICENSE_COMPLIANCE.md`.
-

@@ -1,6 +1,6 @@
 # IDWP Linux Development Setup
 
-The canonical development environment is a clean Debian 12 or supported Ubuntu installation. The bootstrap installs system packages and toolchains, clones the organization fork, and runs the upstream-quality baseline.
+The canonical development environment is a clean Debian 12 or supported Ubuntu installation. The bootstrap installs system packages and toolchains, clones the organization fork, and runs the exact upstream CI quality baseline.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Slade-Digital-LLC/IndependentDeveloperWorkflowMCP/feature/epic-1-baseline/scripts/bootstrap-linux.sh \
@@ -32,3 +32,4 @@ bash scripts/bootstrap-linux.sh --skip-audit
 
 The script intentionally does not install API tokens, AI credentials, wshm Pro license material, production services, or databases. Upstream OSS uses bundled SQLite. Live-provider and Pro-feature tests require separately authorized credentials and licensing.
 
+`bun run check` is intentionally not part of the Epic 1 bootstrap because the pinned, unmodified upstream fails it with 12 TypeScript errors and 5 warnings, while upstream CI runs `bun run build`. The failure is retained as due-diligence evidence, not hidden or repaired during the no-feature baseline epic.

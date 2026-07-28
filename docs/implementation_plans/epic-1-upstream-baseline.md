@@ -42,7 +42,8 @@ Epic 1 adds shell automation and documentation, not product business behavior. T
 - Help/invalid-option checks.
 - Clean Debian 12 end-to-end install into a new destination.
 - Rerun against an existing clean checkout to prove idempotent fast-forward behavior.
-- Upstream web check/build and Rust fmt/build/test/Clippy.
+- Upstream web build and Rust fmt/build/test/Clippy.
+- Diagnostic `bun run check`, recorded separately because it is not an upstream CI gate.
 - Cargo advisory scan and dependency/license inventory.
 - Clean clone SHA verification.
 
@@ -89,7 +90,8 @@ Relied upon unchanged:
 | Command | Scope | Result | Notes |
 |---|---|---|---|
 | `bash -n scripts/bootstrap-linux.sh` | shell | Not run | Pending VM |
-| `bun run check && bun run build` | frontend | Not run | Pending VM |
+| `bun run check` | frontend diagnostic | Failed | 12 errors and 5 warnings in five unmodified upstream Svelte files; not an upstream CI gate |
+| `bun run build` | frontend baseline | Not run | Pending VM rerun |
 | `cargo fmt -- --check` | formatting | Not run | Pending VM |
 | `cargo build --locked` | build | Not run | Pending VM |
 | `cargo test --locked` | unit/integration | Not run | Pending VM |
@@ -107,5 +109,4 @@ The installer has no unit-test framework; clean-machine execution is the meaning
 - Integration tests: Not run
 - Coverage: Not run; shell automation is validated end to end
 - Live verification: GitHub upstream/fork metadata passed; VM pending
-- Remaining unverified areas: Linux bootstrap/build, advisory scan, release notices, independent review
-
+- Remaining unverified areas: Linux bootstrap/build rerun, advisory scan, release notices, independent review
