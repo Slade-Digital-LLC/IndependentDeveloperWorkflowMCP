@@ -5,6 +5,8 @@ REPOSITORY_URL="https://github.com/Slade-Digital-LLC/IndependentDeveloperWorkflo
 PROJECT_REF="master"
 DESTINATION="${HOME}/src/IndependentDeveloperWorkflowMCP"
 RUST_TOOLCHAIN="1.97.1"
+OPENCODE_VERSION="1.18.7"
+OPENCODE_LINUX_X64_SHA256="cb5d9d6d2f8fbef0a9c975ed4494f73b2a62f4e4ffd508bcc3212da4fa76c3da"
 SKIP_BUILD=0
 SKIP_AUDIT=0
 
@@ -116,6 +118,35 @@ if ! command -v bun >/dev/null 2>&1; then
 fi
 export PATH="${HOME}/.bun/bin:${PATH}"
 
+export PATH="${HOME}/.local/bin:${PATH}"
+if ! command -v opencode >/dev/null 2>&1 ||
+    [[ "$(opencode --version)" != "${OPENCODE_VERSION}" ]]; then
+    architecture="$(uname -m)"
+    if [[ "${architecture}" != "x86_64" ]]; then
+        echo "OpenCode compatibility pin currently supports Linux x86_64 only." >&2
+        exit 1
+    fi
+    opencode_archive="$(mktemp)"
+    trap 'rm -f "${opencode_archive}"' EXIT
+    curl -fsSL \
+        "https://github.com/anomalyco/opencode/releases/download/v${OPENCODE_VERSION}/opencode-linux-x64.tar.gz" \
+        -o "${opencode_archive}"
+    printf '%s  %s\n' "${OPENCODE_LINUX_X64_SHA256}" "${opencode_archive}" \
+        | sha256sum --check -
+    mkdir -p "${HOME}/.local/lib/opencode/${OPENCODE_VERSION}" \
+        "${HOME}/.local/bin"
+    tar -xzf "${opencode_archive}" \
+        -C "${HOME}/.local/lib/opencode/${OPENCODE_VERSION}"
+    ln -sfn "${HOME}/.local/lib/opencode/${OPENCODE_VERSION}/opencode" \
+        "${HOME}/.local/bin/opencode"
+    rm -f "${opencode_archive}"
+    trap - EXIT
+fi
+[[ "$(opencode --version)" == "${OPENCODE_VERSION}" ]] || {
+    echo "OpenCode ${OPENCODE_VERSION} installation verification failed." >&2
+    exit 1
+}
+
 if [[ -e "${DESTINATION}" && ! -d "${DESTINATION}/.git" ]]; then
     echo "Destination exists but is not a Git checkout: ${DESTINATION}" >&2
     exit 1
@@ -175,6 +206,14 @@ touch "${DESTINATION}/src/web-dist/.gitkeep"
             --ignore RUSTSEC-2026-0118 \
             --ignore RUSTSEC-2026-0119
     fi
+)
+
+(
+    cd "${DESTINATION}/compat/epic2"
+    cargo fmt -- --check
+    cargo build --locked
+    cargo test --locked
+    cargo clippy --locked -- -D warnings
 )
 
 printf 'Bootstrap and validation complete.\nRevision: %s\nPath: %s\n' \

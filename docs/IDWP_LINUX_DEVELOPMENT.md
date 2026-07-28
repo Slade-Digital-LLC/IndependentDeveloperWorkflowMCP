@@ -18,6 +18,7 @@ Installed prerequisites:
 - C/C++ build tools, Clang, CMake, `pkg-config`, and OpenSSL headers;
 - Rust 1.97.1 through rustup with rustfmt and Clippy, also pinned by `rust-toolchain.toml`;
 - Bun for the Svelte/Vite frontend;
+- OpenCode 1.18.7 for the Epic 2 noninteractive/MCP compatibility contract;
 - `cargo-audit` unless `--skip-audit` is selected.
 
 Useful modes:
@@ -31,5 +32,18 @@ bash scripts/bootstrap-linux.sh --skip-audit
 ```
 
 The script intentionally does not install API tokens, AI credentials, wshm Pro license material, production services, or databases. Upstream OSS uses bundled SQLite. Live-provider and Pro-feature tests require separately authorized credentials and licensing.
+
+Epic 2 compatibility validation is isolated from production workflow code:
+
+```bash
+cd "$HOME/src/IndependentDeveloperWorkflowMCP"
+bash compat/epic2/test-compat.sh
+```
+
+The test starts the authenticated Rust Streamable HTTP MCP prototype, checks
+tools, resources, safe errors, and restart behavior, then confirms OpenCode
+discovers the remote server. A bounded live model run uses
+`compat/epic2/run-opencode.sh`; it requires an approved provider credential
+already configured outside the repository.
 
 `bun run check` is intentionally not part of the Epic 1 bootstrap because the pinned, unmodified upstream fails it with 12 TypeScript errors and 5 warnings, while upstream CI runs `bun run build`. The failure is retained as due-diligence evidence, not hidden or repaired during the no-feature baseline epic.

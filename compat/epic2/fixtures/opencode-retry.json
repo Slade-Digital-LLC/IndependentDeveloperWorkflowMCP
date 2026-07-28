@@ -1,0 +1,11 @@
+{
+  "id": "evt_retry_1",
+  "type": "session.next.retried",
+  "properties": {
+    "sessionID": "ses_epic2_implementation",
+    "timestamp": 1785200000100,
+    "attempt": 2,
+    "status": 503,
+    "retryable": true
+  }
+}
