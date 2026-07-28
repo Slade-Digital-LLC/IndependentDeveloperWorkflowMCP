@@ -23,13 +23,13 @@ Create the legally and technically verified wshm fork baseline, project guidance
 - [x] Inventory source, persistence, UI, providers, workflows, deployment, and tests.
 - [x] Document license and architectural viability findings.
 - [x] Add idempotent Linux bootstrap/copy script.
-- [ ] Build/test pristine upstream.
-- [ ] Create Debian 12 VirtualBox VM.
-- [ ] Run clean-clone bootstrap and validation in VM.
-- [ ] Run dependency/license/advisory evidence.
-- [ ] Inspect release artifact notices.
+- [x] Build/test pristine upstream.
+- [x] Create Debian 12 VirtualBox VM.
+- [x] Run clean-clone bootstrap and validation in VM.
+- [x] Run dependency/license/advisory evidence.
+- [x] Inspect release artifact notices.
 - [ ] Complete independent architecture/license review.
-- [ ] Update final evidence and commit the validated change.
+- [x] Update final evidence and commit the validated change.
 
 ## Testability and Verification
 
@@ -92,23 +92,24 @@ Relied upon unchanged:
 |---|---|---|---|
 | `bash -n scripts/bootstrap-linux.sh` | shell | Not run | Pending VM |
 | `bun run check` | frontend diagnostic | Failed | 12 errors and 5 warnings in five unmodified upstream Svelte files; not an upstream CI gate |
-| `bun run build` | frontend baseline | Not run | Pending VM rerun |
-| `cargo fmt -- --check` | formatting | Not run | Pending VM |
-| `cargo build --locked` | build | Not run | Pending VM |
-| `cargo test --locked` | unit/integration | Not run | Pending VM |
-| `cargo clippy --locked -- -D warnings` | lint | Not run | Pending VM |
-| `cargo audit ...` | advisory | Not run | Pending VM |
-| `bootstrap-linux.sh --skip-build` rerun | idempotence | Failed, then pending rerun | First run exposed upstream web build deleting tracked `src/web-dist/.gitkeep`; bootstrap now restores the sentinel |
+| `bun run build` | frontend baseline | Passed with warnings | Production assets built; upstream accessibility/reactivity warnings remain |
+| `cargo fmt -- --check` | formatting | Passed | No formatting drift |
+| `cargo build --locked` | build | Passed | Debug build completed |
+| `cargo test --locked` | unit/integration | Passed | 81 passed, 0 failed; one doctest ignored |
+| `cargo clippy --locked -- -D warnings` | lint | Passed | No Clippy warnings |
+| `cargo audit --ignore ...` | advisory | Passed with warnings | Exit 0; six upstream ignores and eight allowed warning advisories |
+| `bootstrap-linux.sh --skip-build` rerun | idempotence | Passed after fix | Initial sentinel deletion defect fixed; fast-forward rerun clean at `7306e53` |
+| Release checksum and archive inventory | distribution | Passed with finding | SHA-256 matched; archive contains only binary and lacks license/notices |
 
 ### Coverage and Remaining Risk
 
-The installer has no unit-test framework; clean-machine execution is the meaningful coverage. License conclusions require qualified counsel. Pro-only source and live provider parity remain outside Epic 1.
+The installer has no unit-test framework; clean-machine execution is the meaningful coverage. The final checkout was clean after a full build. Pro-only source and live provider parity remain outside Epic 1. External access/distribution is not part of the approved internal deployment; changing that scope reopens license review.
 
 ### Final Verification Status
 
-- Focused tests: Not run
-- Broader regression suite: Not run
-- Integration tests: Not run
-- Coverage: Not run; shell automation is validated end to end
-- Live verification: GitHub upstream/fork metadata passed; VM pending
-- Remaining unverified areas: Linux bootstrap/build rerun, advisory scan, release notices, independent review
+- Focused tests: Passed — shell parse/help, clean bootstrap, and idempotent rerun
+- Broader regression suite: Passed — 81 Rust tests, no failures
+- Integration tests: Passed — clean Debian VirtualBox install/copy/build
+- Coverage: Not run — no product behavior changed; clean-machine execution covers installer behavior
+- Live verification: Passed — GitHub metadata/fork and public dependency/release endpoints; no provider writes
+- Remaining unverified areas: independent architecture/license review; Pro/live provider behavior outside Epic 1
