@@ -1,0 +1,22 @@
+{
+  "type": "step_finish",
+  "timestamp": 1785200000000,
+  "sessionID": "ses_epic2_implementation",
+  "part": {
+    "id": "part_1",
+    "sessionID": "ses_epic2_implementation",
+    "messageID": "msg_1",
+    "type": "step-finish",
+    "reason": "stop",
+    "cost": 0.00125,
+    "tokens": {
+      "input": 10,
+      "output": 4,
+      "reasoning": 2,
+      "cache": {
+        "read": 3,
+        "write": 1
+      }
+    }
+  }
+}
