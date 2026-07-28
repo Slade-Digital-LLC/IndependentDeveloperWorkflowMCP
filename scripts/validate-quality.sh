@@ -29,10 +29,10 @@ if ((RUN_ADVISORY)); then
         echo "cargo-audit 0.22.2 is required" >&2
         exit 1
     }
-    cargo audit --version | grep -Eq '^cargo-audit 0\.22\.2([[:space:]]|$)' || {
-        echo "cargo-audit 0.22.2 is required" >&2
-        exit 1
-    }
+    case "$(cargo audit --version)" in
+        "cargo-audit 0.22.2"*) ;;
+        *) echo "cargo-audit 0.22.2 is required" >&2; exit 1 ;;
+    esac
     cargo audit \
         --ignore RUSTSEC-2026-0097 \
         --ignore RUSTSEC-2026-0098 \

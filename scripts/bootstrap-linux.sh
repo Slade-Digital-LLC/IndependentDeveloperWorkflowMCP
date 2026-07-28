@@ -193,9 +193,9 @@ touch "${DESTINATION}/src/web-dist/.gitkeep"
 (
     cd "${DESTINATION}"
     if ((!SKIP_AUDIT)); then
+        audit_version="$(cargo audit --version 2>/dev/null || true)"
         if ! command -v cargo-audit >/dev/null 2>&1 ||
-            ! cargo audit --version |
-                grep -Eq "^cargo-audit ${CARGO_AUDIT_VERSION//./\\.}([[:space:]]|$)"; then
+            [[ "${audit_version}" != "cargo-audit ${CARGO_AUDIT_VERSION}"* ]]; then
             cargo install cargo-audit --locked \
                 --version "${CARGO_AUDIT_VERSION}" --force
         fi
