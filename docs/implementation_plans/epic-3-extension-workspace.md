@@ -210,6 +210,7 @@ Relied upon:
 | Reviewer-fix Python regression suite | asset gate unit | Passed | 6 tests |
 | Reviewer-fix host Cargo suite | Rust regression | Blocked | Cargo is not installed on the ordinary Windows host; exact-head Debian run required |
 | Initial reviewer-fix all-workspace/all-feature gate | upstream optional features | Failed as designed | exposed 13 pre-existing async-constructor errors in optional upstream cloud/storage/vault code; narrowed to all IDWP features plus supported upstream defaults to preserve the Epic 3 boundary |
+| Reviewer-fix canonical Debian bootstrap | final integration | Passed | exact `dc6107de3e985144ab413f9b5881fc09074a2283`; 7 architecture, 6 asset/SBOM, 81 upstream, all IDWP features, Clippy, advisory, frontend, Epic 2 and clean-checkout gates passed |
 
 ### Coverage and Remaining Risk
 
@@ -223,14 +224,14 @@ branches are covered directly by ten focused tests.
 
 ### Final Verification Status
 
-- Focused tests: Passed before review - 5 architecture and 5 asset-gate tests;
-  reviewer-fix Python suite passed 6 tests and Rust rerun awaits Debian.
+- Focused tests: Passed - 7 architecture and 6 asset-gate tests after review.
 - Broader regression suite: Passed - 81 upstream and 7 Epic 2 tests.
 - Integration tests: Passed - canonical quality and Epic 2 black box in Debian.
 - Coverage: Not run - coverage tool unavailable; branch mapping reviewed.
-- Live verification: Passed - exact-head Debian bootstrap and idempotent rerun.
-- Remaining unverified areas: reviewer re-check, final-head GitHub CI, and
-  final-head Debian rerun.
+- Live verification: Passed - reviewer-fix Debian bootstrap at `dc6107d`; one
+  final plan-inclusive head rerun remains.
+- Remaining unverified areas: reviewer re-check, final-head GitHub CI, and the
+  final plan-inclusive Debian rerun.
 
 ## Delegation Record
 
@@ -252,7 +253,8 @@ remains.
 
 ## Review, Check-In, and Release Record
 
-- Feature commits: `e625558`, `07f8c8a`, `918485c`, `fa10dfc`, `94034b2`
+- Feature commits: `e625558`, `07f8c8a`, `918485c`, `fa10dfc`, `94034b2`,
+  `9b020f9`, `dc6107d`
 - Feature PR to `develop`: [#10](https://github.com/Slade-Digital-LLC/IndependentDeveloperWorkflowMCP/pull/10)
 - Independent reviewer: `/root/epic3_independent_review`, actual runtime
   reported as GPT-5 Codex; read-only full-diff review at `94034b2`.
