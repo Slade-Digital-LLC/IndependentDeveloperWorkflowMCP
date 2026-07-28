@@ -33,6 +33,13 @@ bash scripts/bootstrap-linux.sh --skip-audit
 
 The script intentionally does not install API tokens, AI credentials, wshm Pro license material, production services, or databases. Upstream OSS uses bundled SQLite. Live-provider and Pro-feature tests require separately authorized credentials and licensing.
 
+The maintained `IDWP-Debian12` appliance uses the local `idwp` test account.
+Its password is stored only as the Windows Generic Credential target
+`IDWP/VirtualBox/IDWP-Debian12/idwp`. Never copy that value into commands,
+documentation, repository files, or logs; host automation must read it through
+the Windows Credential Manager API and clear the in-memory value after invoking
+VirtualBox Guest Control.
+
 Epic 2 compatibility validation is isolated from production workflow code:
 
 ```bash

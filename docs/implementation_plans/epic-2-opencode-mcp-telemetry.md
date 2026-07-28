@@ -164,6 +164,10 @@ help, Rust SDK examples, fixtures, and live behavior. No escalation remains.
   every canonical build/test command was run individually to completion.
 - A deliberately mistyped expanded commit SHA failed before checkout and did
   not produce false validation evidence.
+- The disposable VM credential was missing after appliance setup. The `idwp`
+  password was reset through Debian recovery, stored only in Windows Credential
+  Manager at `IDWP/VirtualBox/IDWP-Debian12/idwp`, and verified with an
+  authenticated Guest Control command. No secret was added to the repository.
 
 ## Lessons Learned
 
