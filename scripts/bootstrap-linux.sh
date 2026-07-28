@@ -216,5 +216,7 @@ touch "${DESTINATION}/src/web-dist/.gitkeep"
     cargo clippy --locked -- -D warnings
 )
 
+bash "${DESTINATION}/compat/epic2/test-compat.sh"
+
 printf 'Bootstrap and validation complete.\nRevision: %s\nPath: %s\n' \
     "$(git -C "${DESTINATION}" rev-parse HEAD)" "${DESTINATION}"

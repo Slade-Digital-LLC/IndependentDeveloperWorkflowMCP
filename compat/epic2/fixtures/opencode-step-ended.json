@@ -1,0 +1,20 @@
+{
+  "id": "evt_step_ended_1",
+  "type": "session.next.step.ended",
+  "properties": {
+    "timestamp": 1785200000050,
+    "sessionID": "ses_epic2_implementation",
+    "assistantMessageID": "msg_1",
+    "finish": "stop",
+    "cost": 0.00125,
+    "tokens": {
+      "input": 10,
+      "output": 4,
+      "reasoning": 2,
+      "cache": {
+        "read": 3,
+        "write": 1
+      }
+    }
+  }
+}

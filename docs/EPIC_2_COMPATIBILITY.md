@@ -138,10 +138,14 @@ cargo clippy --manifest-path compat/epic2/Cargo.toml --locked -- -D warnings
 bash compat/epic2/test-compat.sh
 ```
 
-Fixtures pin the CLI `step_finish`, server step-start, retry, and task
-delegation shapes. Tests fail on missing session IDs, invalid token types,
-missing route/delegation correlation, protocol/tool/resource drift, auth
-regressions, restart loss, and OpenCode discovery failure.
+Provenance metadata pins sanitized OpenCode 1.18.7 CLI `step_finish`, server
+step-start/step-end/retry, task-delegation, and bounded-cancellation artifacts
+to the inspected release and source surface. The production normalizer consumes
+those complete fixtures. Tests fail on missing session/message IDs, invalid
+token types, missing requested/actual route or delegation correlation, missing
+retry/cancellation fields, protocol/tool/resource drift, auth regressions,
+restart loss, and OpenCode discovery failure. The canonical Linux bootstrap
+runs both the Rust gates and the black-box harness.
 
 The bounded VM-only free-route attempt timed out without a model event. A
 second pinned OpenCode 1.18.7 run used the authenticated host environment

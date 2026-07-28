@@ -1,0 +1,9 @@
+{
+  "type": "error",
+  "timestamp": 1785200000300,
+  "sessionID": "ses_epic2_timeout",
+  "error": {
+    "name": "AbortError",
+    "message": "The operation was aborted after the bounded launcher timeout."
+  }
+}

@@ -133,7 +133,7 @@ help, Rust SDK examples, fixtures, and live behavior. No escalation remains.
 
 | Check | Result | Evidence |
 |---|---|---|
-| Rust fmt/build/test/Clippy | Passed | Debian 12; 5 unit tests; warnings denied |
+| Rust fmt/build/test/Clippy | Passed | Debian 12; 7 unit tests; warnings denied |
 | Authenticated MCP black box | Passed | auth, initialize, tools, resources, safe error |
 | Restart/reconnect | Passed | new MCP session; external revision/value preserved |
 | OpenCode discovery | Passed | 1.18.7 reported MCP server connected |
@@ -144,7 +144,9 @@ help, Rust SDK examples, fixtures, and live behavior. No escalation remains.
 | Clean-clone source and tool pin | Passed | exact commit `3c74d0968e52a663cbc50c6866d6bec9d7959593`; OpenCode 1.18.7 |
 | Upstream frontend production build | Passed with known warnings | unchanged upstream Svelte warnings retained |
 | Upstream Rust regression | Passed | fmt/build/Clippy; 81 tests passed, 0 failed; one doctest ignored |
-| Focused compatibility gates | Passed | fmt/build/Clippy; 5 tests passed; black-box protocol suite passed |
+| Focused compatibility gates | Passed before review corrections | fmt/build/Clippy; 5 tests passed; black-box protocol suite passed |
+| Review-correction Rust gates | Passed | isolated Rust 1.97.1 host toolchain; fmt, 7 tests, Clippy with warnings denied |
+| Corrected shell entry points | Passed | Bash syntax check; bootstrap now invokes black-box harness |
 
 ## Deviations
 
@@ -172,6 +174,8 @@ help, Rust SDK examples, fixtures, and live behavior. No escalation remains.
 - Restart-safe authority must be external to the MCP transport session.
 - Long-running Guest Control sessions are not reliable evidence boundaries;
   preserve command-level results and verify the exact checkout remains clean.
+- Compatibility drift tests must feed full provenance-bearing fixtures through
+  production normalization; literal pointer assertions are insufficient.
 
 ## Check-In Tracking
 

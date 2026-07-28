@@ -158,6 +158,12 @@ pub struct NormalizedTelemetry {
     pub actual_model: Option<String>,
     pub tokens: Option<TokenUsage>,
     pub cost_decimal: Option<String>,
+    pub retry_attempt: Option<u64>,
+    pub retryable: Option<bool>,
+    pub parent_session_id: Option<String>,
+    pub child_session_id: Option<String>,
+    pub selected_model: Option<String>,
+    pub terminal_error: Option<String>,
     pub quality: String,
     pub missing_fields: Vec<String>,
 }
@@ -170,14 +176,17 @@ pub fn normalize_opencode_event(
         .get("type")
         .and_then(Value::as_str)
         .ok_or("missing event type")?;
+    let properties = event.get("properties");
+    let part = event.get("part");
     let session_id = event
         .get("sessionID")
+        .or_else(|| properties.and_then(|value| value.get("sessionID")))
         .and_then(Value::as_str)
         .ok_or("missing sessionID")?
         .to_owned();
-    let part = event.get("part");
     let tokens = part
         .and_then(|part| part.get("tokens"))
+        .or_else(|| properties.and_then(|value| value.get("tokens")))
         .map(|tokens| {
             Ok::<TokenUsage, String>(TokenUsage {
                 input: required_u64(tokens, "input")?,
@@ -200,16 +209,40 @@ pub fn normalize_opencode_event(
         .transpose()?;
     let cost_decimal = part
         .and_then(|part| part.get("cost"))
+        .or_else(|| properties.and_then(|value| value.get("cost")))
         .and_then(Value::as_number)
         .map(ToString::to_string);
     let actual_provider = event
         .pointer("/providerID")
         .or_else(|| event.pointer("/part/providerID"))
+        .or_else(|| event.pointer("/properties/model/providerID"))
         .and_then(Value::as_str)
         .map(str::to_owned);
     let actual_model = event
         .pointer("/modelID")
         .or_else(|| event.pointer("/part/modelID"))
+        .or_else(|| event.pointer("/properties/model/id"))
+        .and_then(Value::as_str)
+        .map(str::to_owned);
+    let retry_attempt = event.pointer("/properties/attempt").and_then(Value::as_u64);
+    let retryable = event
+        .pointer("/properties/retryable")
+        .and_then(Value::as_bool);
+    let parent_session_id = event
+        .pointer("/part/state/metadata/parentSessionId")
+        .and_then(Value::as_str)
+        .map(str::to_owned);
+    let child_session_id = event
+        .pointer("/part/state/metadata/sessionId")
+        .and_then(Value::as_str)
+        .map(str::to_owned);
+    let selected_model = event
+        .pointer("/part/state/metadata/model")
+        .and_then(Value::as_str)
+        .map(str::to_owned);
+    let terminal_error = event
+        .pointer("/error/name")
+        .or_else(|| event.pointer("/part/error/name"))
         .and_then(Value::as_str)
         .map(str::to_owned);
     let mut missing_fields = Vec::new();
@@ -238,6 +271,7 @@ pub fn normalize_opencode_event(
         session_id,
         message_id: part
             .and_then(|part| part.get("messageID"))
+            .or_else(|| properties.and_then(|value| value.get("assistantMessageID")))
             .and_then(Value::as_str)
             .map(str::to_owned),
         requested_model,
@@ -245,6 +279,12 @@ pub fn normalize_opencode_event(
         actual_model,
         tokens,
         cost_decimal,
+        retry_attempt,
+        retryable,
+        parent_session_id,
+        child_session_id,
+        selected_model,
+        terminal_error,
         quality: quality.to_owned(),
         missing_fields,
     })
@@ -265,23 +305,11 @@ mod tests {
 
     #[test]
     fn telemetry_preserves_machine_readable_usage_and_missing_model() {
-        let event = json!({
-            "type": "step_finish",
-            "sessionID": "ses_implementation",
-            "part": {
-                "messageID": "msg_1",
-                "cost": 0.00125,
-                "tokens": {
-                    "input": 10,
-                    "output": 4,
-                    "reasoning": 2,
-                    "cache": { "read": 3, "write": 1 }
-                }
-            }
-        });
+        let event: Value =
+            serde_json::from_str(include_str!("../fixtures/opencode-step-finish.json")).unwrap();
         let telemetry =
             normalize_opencode_event(&event, Some("opencode/test-model".to_owned())).unwrap();
-        assert_eq!(telemetry.session_id, "ses_implementation");
+        assert_eq!(telemetry.session_id, "ses_epic2_implementation");
         assert_eq!(telemetry.cost_decimal.as_deref(), Some("0.00125"));
         assert_eq!(telemetry.quality, "Partial");
         assert!(
@@ -320,25 +348,69 @@ mod tests {
     }
 
     #[test]
-    fn server_event_fixtures_preserve_route_retry_and_delegation_correlation() {
+    fn server_step_events_normalize_route_and_correlated_usage() {
         let started: Value =
             serde_json::from_str(include_str!("../fixtures/opencode-step-started.json")).unwrap();
-        assert_eq!(
-            started.pointer("/properties/model/providerID"),
-            Some(&json!("opencode"))
-        );
+        let start = normalize_opencode_event(&started, Some("requested/model".to_owned())).unwrap();
+        assert_eq!(start.session_id, "ses_epic2_implementation");
+        assert_eq!(start.message_id.as_deref(), Some("msg_1"));
+        assert_eq!(start.requested_model.as_deref(), Some("requested/model"));
+        assert_eq!(start.actual_provider.as_deref(), Some("opencode"));
+        assert_eq!(start.actual_model.as_deref(), Some("big-pickle"));
+
+        let ended: Value =
+            serde_json::from_str(include_str!("../fixtures/opencode-step-ended.json")).unwrap();
+        let end = normalize_opencode_event(&ended, None).unwrap();
+        assert_eq!(end.session_id, start.session_id);
+        assert_eq!(end.message_id, start.message_id);
+        assert_eq!(end.tokens.unwrap().output, 4);
+        assert_eq!(end.cost_decimal.as_deref(), Some("0.00125"));
+    }
+
+    #[test]
+    fn retry_delegation_and_timeout_fixtures_fail_closed_on_drift() {
         let retry: Value =
             serde_json::from_str(include_str!("../fixtures/opencode-retry.json")).unwrap();
-        assert_eq!(retry.pointer("/properties/attempt"), Some(&json!(2)));
+        let retry = normalize_opencode_event(&retry, None).unwrap();
+        assert_eq!(retry.session_id, "ses_epic2_implementation");
+        assert_eq!(retry.retry_attempt, Some(2));
+        assert_eq!(retry.retryable, Some(true));
+
         let delegation: Value =
             serde_json::from_str(include_str!("../fixtures/opencode-delegation.json")).unwrap();
+        let delegation = normalize_opencode_event(&delegation, None).unwrap();
         assert_eq!(
-            delegation.pointer("/part/state/metadata/parentSessionId"),
-            Some(&json!("ses_epic2_implementation"))
+            delegation.parent_session_id.as_deref(),
+            Some("ses_epic2_implementation")
         );
-        assert_ne!(
-            delegation.pointer("/part/state/metadata/parentSessionId"),
-            delegation.pointer("/part/state/metadata/sessionId")
+        assert_eq!(
+            delegation.child_session_id.as_deref(),
+            Some("ses_epic2_child")
         );
+        assert_ne!(delegation.parent_session_id, delegation.child_session_id);
+        assert_eq!(
+            delegation.selected_model.as_deref(),
+            Some("opencode/big-pickle")
+        );
+
+        let timeout: Value =
+            serde_json::from_str(include_str!("../fixtures/opencode-timeout.json")).unwrap();
+        let timeout = normalize_opencode_event(&timeout, None).unwrap();
+        assert_eq!(timeout.session_id, "ses_epic2_timeout");
+        assert_eq!(timeout.terminal_error.as_deref(), Some("AbortError"));
+    }
+
+    #[test]
+    fn fixture_provenance_pins_observed_opencode_contract() {
+        let provenance: Value =
+            serde_json::from_str(include_str!("../fixtures/provenance.json")).unwrap();
+        assert_eq!(provenance["opencode_version"], "1.18.7");
+        assert_eq!(
+            provenance["tag_commit"],
+            "02981844b88aed33f06f1527da6c58d137975069"
+        );
+        let fixtures = provenance["fixtures"].as_array().unwrap();
+        assert_eq!(fixtures.len(), 6);
+        assert!(fixtures.iter().all(|item| item["source"].is_string()));
     }
 }
