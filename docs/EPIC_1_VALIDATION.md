@@ -77,5 +77,8 @@ Focused Debian VM results:
 - The existing correct organization checkout updated the feature branch to the exact reviewed commit and remained clean.
 - Rust is pinned to 1.97.1 in the installer and `rust-toolchain.toml`.
 - The default project ref is the durable `master` branch; reproducibility validation uses an explicit full SHA.
+- A previously shallow correct checkout was unshallowed, proven safe, and fast-forwarded without moving its local branch outside normal Git ancestry.
+- A clean local branch one commit ahead of its remote was rejected; its HEAD and clean state remained unchanged.
+- A clean local branch diverged from its remote was rejected; its HEAD and clean state remained unchanged.
 
 The requested reviewer model was `gpt-5.6-terra`; the child handoff reported GPT-5 Codex as the actual runtime model. The mismatch is retained in the implementation record.
