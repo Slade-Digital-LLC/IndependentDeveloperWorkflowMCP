@@ -211,6 +211,8 @@ Relied upon:
 | Reviewer-fix host Cargo suite | Rust regression | Blocked | Cargo is not installed on the ordinary Windows host; exact-head Debian run required |
 | Initial reviewer-fix all-workspace/all-feature gate | upstream optional features | Failed as designed | exposed 13 pre-existing async-constructor errors in optional upstream cloud/storage/vault code; narrowed to all IDWP features plus supported upstream defaults to preserve the Epic 3 boundary |
 | Reviewer-fix canonical Debian bootstrap | final integration | Passed | exact `dc6107de3e985144ab413f9b5881fc09074a2283`; 7 architecture, 6 asset/SBOM, 81 upstream, all IDWP features, Clippy, advisory, frontend, Epic 2 and clean-checkout gates passed |
+| Final plan-inclusive Debian bootstrap | final integration | Passed | exact `23f0f078a15ad343202a6f997abe6d2ed954b290`; canonical bootstrap completed and checkout reported 0 status lines |
+| Final-head GitHub Actions | hosted CI | Passed | Linux, Windows, Security, Epic 3 quality, and release smoke jobs |
 
 ### Coverage and Remaining Risk
 
@@ -228,10 +230,9 @@ branches are covered directly by ten focused tests.
 - Broader regression suite: Passed - 81 upstream and 7 Epic 2 tests.
 - Integration tests: Passed - canonical quality and Epic 2 black box in Debian.
 - Coverage: Not run - coverage tool unavailable; branch mapping reviewed.
-- Live verification: Passed - reviewer-fix Debian bootstrap at `dc6107d`; one
-  final plan-inclusive head rerun remains.
-- Remaining unverified areas: reviewer re-check, final-head GitHub CI, and the
-  final plan-inclusive Debian rerun.
+- Live verification: Passed - canonical Debian bootstrap at exact plan-inclusive
+  head `23f0f07`, with a clean checkout.
+- Remaining unverified areas: None for Epic 3.
 
 ## Delegation Record
 
@@ -274,7 +275,10 @@ remains.
   and covered by regression.
 - `Code Review 006` Active -> Pending: reject unclassified upstream-to-IDWP
   edges; accepted and covered by regression.
-- Native resolution verification: pending
+- Independent reviewer rechecked exact head `23f0f07` and moved all six
+  threads from Fixed to Closed.
+- Native resolution verification: passed through paginated GraphQL; 6 total
+  threads, 0 unresolved, `hasNextPage=false`.
 - Release PR to `master`: pending
 - Sync-back PR to `develop`: pending
 
