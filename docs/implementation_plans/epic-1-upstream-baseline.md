@@ -28,7 +28,7 @@ Create the legally and technically verified wshm fork baseline, project guidance
 - [x] Run clean-clone bootstrap and validation in VM.
 - [x] Run dependency/license/advisory evidence.
 - [x] Inspect release artifact notices.
-- [ ] Complete independent architecture/license review and finding recheck.
+- [x] Complete independent architecture/license review and finding recheck.
 - [x] Update final evidence and commit the validated change.
 
 ## Testability and Verification
@@ -119,4 +119,4 @@ The installer has no unit-test framework; clean-machine execution is the meaning
 - Integration tests: Passed — clean Debian VirtualBox install/copy/build
 - Coverage: Not run — no product behavior changed; clean-machine execution covers installer behavior
 - Live verification: Passed — GitHub metadata/fork and public dependency/release endpoints; no provider writes
-- Remaining unverified areas: independent architecture/license review; Pro/live provider behavior outside Epic 1
+- Remaining unverified areas: Pro/live provider behavior outside Epic 1
