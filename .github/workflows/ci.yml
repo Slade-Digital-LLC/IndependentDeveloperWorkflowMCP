@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [master, develop]
   pull_request:
-    branches: [main, develop]
+    branches: [master, develop]
   workflow_dispatch:
 
 env:
@@ -28,6 +28,9 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.97.1
+          components: clippy,rustfmt
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -56,6 +59,24 @@ jobs:
       - name: Clippy
         run: cargo clippy --locked -- -D warnings
 
+  idwp-quality:
+    name: IDWP architecture, notices, license, and SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pinned Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.97.1
+          components: clippy,rustfmt
+
+      - name: Install pinned advisory scanner
+        run: cargo install cargo-audit --locked --version 0.22.2
+
+      - name: Run canonical IDWP quality gates
+        run: bash scripts/validate-quality.sh
+
   security:
     name: Security
     runs-on: ubuntu-latest
@@ -64,9 +85,11 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.97.1
 
       - name: Install cargo-audit
-        run: cargo install cargo-audit
+        run: cargo install cargo-audit --locked --version 0.22.2
 
       - name: Dependency audit (CVEs)
         # Ignored advisories — all transitive, no upstream fix yet.
@@ -134,6 +157,8 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.97.1
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2

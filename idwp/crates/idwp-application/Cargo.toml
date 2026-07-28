@@ -1,0 +1,15 @@
+[package]
+name = "idwp-application"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license-file.workspace = true
+
+[dependencies]
+idwp-domain = { path = "../idwp-domain" }
+idwp-provider-contract = { path = "../idwp-provider-contract" }
+idwp-review-contract = { path = "../idwp-review-contract" }
+
+[lib]
+path = "src/lib.rs"

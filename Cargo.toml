@@ -1,3 +1,21 @@
+[workspace]
+members = [
+    ".",
+    "idwp/crates/idwp-application",
+    "idwp/crates/idwp-domain",
+    "idwp/crates/idwp-provider-contract",
+    "idwp/crates/idwp-review-contract",
+    "idwp/architecture-tests",
+]
+exclude = ["compat/epic2"]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+rust-version = "1.97.1"
+publish = false
+license-file = "LICENSE"
+
 [package]
 name = "wshm-core"
 version = "0.31.7"
