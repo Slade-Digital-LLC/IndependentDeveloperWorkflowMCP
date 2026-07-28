@@ -29,7 +29,7 @@ if ((RUN_ADVISORY)); then
         echo "cargo-audit 0.22.2 is required" >&2
         exit 1
     }
-    case "$(cargo audit --version)" in
+    case "$(cargo-audit --version)" in
         "cargo-audit 0.22.2"*) ;;
         *) echo "cargo-audit 0.22.2 is required" >&2; exit 1 ;;
     esac
