@@ -44,15 +44,27 @@ normalize_repository_url() {
 
 checkout_requested_ref() {
     local checkout_path="$1"
+    local existing_checkout="$2"
 
     if git ls-remote --exit-code --heads "${REPOSITORY_URL}" \
         "refs/heads/${PROJECT_REF}" >/dev/null 2>&1; then
         git -C "${checkout_path}" fetch --depth 1 origin \
-            "+refs/heads/${PROJECT_REF}:refs/remotes/origin/${PROJECT_REF}"
-        git -C "${checkout_path}" checkout -B "${PROJECT_REF}" \
-            "origin/${PROJECT_REF}"
-        git -C "${checkout_path}" branch --set-upstream-to="origin/${PROJECT_REF}" \
-            "${PROJECT_REF}"
+            "refs/heads/${PROJECT_REF}:refs/remotes/origin/${PROJECT_REF}"
+
+        if ((existing_checkout)) &&
+            git -C "${checkout_path}" show-ref --verify --quiet \
+                "refs/heads/${PROJECT_REF}"; then
+            git -C "${checkout_path}" checkout "${PROJECT_REF}"
+            if ! git -C "${checkout_path}" merge-base --is-ancestor \
+                "${PROJECT_REF}" "origin/${PROJECT_REF}"; then
+                echo "Local branch has commits not present in origin/${PROJECT_REF}; refusing to discard history." >&2
+                exit 1
+            fi
+            git -C "${checkout_path}" merge --ff-only "origin/${PROJECT_REF}"
+        else
+            git -C "${checkout_path}" checkout -b "${PROJECT_REF}" \
+                --track "origin/${PROJECT_REF}"
+        fi
     else
         git -C "${checkout_path}" fetch --depth 1 origin "${PROJECT_REF}"
         git -C "${checkout_path}" checkout --detach FETCH_HEAD
@@ -106,7 +118,7 @@ fi
 if [[ ! -d "${DESTINATION}/.git" ]]; then
     mkdir -p "$(dirname "${DESTINATION}")"
     git clone --no-checkout "${REPOSITORY_URL}" "${DESTINATION}"
-    checkout_requested_ref "${DESTINATION}"
+    checkout_requested_ref "${DESTINATION}" 0
 else
     if [[ -n "$(git -C "${DESTINATION}" status --porcelain)" ]]; then
         echo "Refusing to update a checkout with local changes: ${DESTINATION}" >&2
@@ -123,7 +135,7 @@ else
         exit 1
     fi
 
-    checkout_requested_ref "${DESTINATION}"
+    checkout_requested_ref "${DESTINATION}" 1
 fi
 
 if ((SKIP_BUILD)); then

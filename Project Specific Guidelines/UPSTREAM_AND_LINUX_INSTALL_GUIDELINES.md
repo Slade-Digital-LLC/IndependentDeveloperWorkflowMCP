@@ -40,6 +40,13 @@ For every dependency, toolchain, build-command, or source-layout change:
 
 Do not declare Linux installation verified from Windows, WSL, a container, or inspection alone when a VirtualBox run is required.
 
+## GitHub review comment formatting
+
+- Build multiline PR review bodies with a real multiline here-string or an array joined with the platform newline.
+- Never place PowerShell backtick newline sequences inside a single-quoted string; PowerShell preserves them literally and GitHub renders them as text.
+- Before posting or updating a review comment, inspect the serialized body and confirm paragraph breaks are actual newline characters.
+- After posting the first comment in a batch, read it back from GitHub and verify its rendered body before posting the remainder.
+
 ## VirtualBox test appliance
 
 - The maintained test VM name is `IDWP-Debian12`.
