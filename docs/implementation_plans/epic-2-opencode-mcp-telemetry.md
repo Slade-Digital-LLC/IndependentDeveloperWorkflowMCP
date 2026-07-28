@@ -12,7 +12,7 @@ and request-level usage capture without implementing production workflow logic.
 - Repository: `C:\Users\jcove\source\repos\IndependentDeveloperWorkflowMCP`
 - Workspace: `C:\CodexWorkspace\IndependentDeveloperWorkflowMCP`
 - Upstream baseline: documented in `UPSTREAM.md`
-- OpenCode latest observed release: `v1.18.7`; locally installed: `1.18.4`
+- OpenCode latest observed release and validation pin: `v1.18.7`
 
 ## Applicability Summary
 
@@ -91,8 +91,8 @@ and request-level usage capture without implementing production workflow logic.
   reconnect, restart, timeout, delegation, retry, and drift tests.
 - [x] [Model: openai/gpt-5] Update Linux bootstrap and developer documentation.
 - [x] [Model: openai/gpt-5] Run focused compatibility validation.
-- [ ] [Model: openai/gpt-5] Run upstream regression validation.
-- [ ] [Model: openai/gpt-5] Run clean Debian 12 VirtualBox validation at the
+- [x] [Model: openai/gpt-5] Run upstream regression validation.
+- [x] [Model: openai/gpt-5] Run clean Debian 12 VirtualBox validation at the
   exact feature commit.
 - [ ] [Model: independent reviewer] Complete technical review and resolve all
   native GitHub review conversations.
@@ -141,7 +141,10 @@ help, Rust SDK examples, fixtures, and live behavior. No escalation remains.
 | Live reviewer tool call | Passed | distinct session `ses_05959d3d0ffeP8VF9aFZONakNC` |
 | Reviewer write denial | Passed | edit tool absent; requested file not created |
 | Free-route cost provenance | Partial | numeric zero observed; currency/provenance unavailable |
-| Full clean-clone bootstrap/regression | Pending | exact feature commit required |
+| Clean-clone source and tool pin | Passed | exact commit `3c74d0968e52a663cbc50c6866d6bec9d7959593`; OpenCode 1.18.7 |
+| Upstream frontend production build | Passed with known warnings | unchanged upstream Svelte warnings retained |
+| Upstream Rust regression | Passed | fmt/build/Clippy; 81 tests passed, 0 failed; one doctest ignored |
+| Focused compatibility gates | Passed | fmt/build/Clippy; 5 tests passed; black-box protocol suite passed |
 
 ## Deviations
 
@@ -151,6 +154,14 @@ help, Rust SDK examples, fixtures, and live behavior. No escalation remains.
   removed afterward.
 - Requested Terra child routes ran as GPT-5 Codex; the actual model and
   ownership transitions are recorded.
+- The canonical bootstrap was interrupted twice by the VirtualBox Guest
+  Control transport after it had installed dependencies, pinned OpenCode, and
+  reached the frontend build. Its fail-closed dirty-checkout guard correctly
+  rejected a rerun until the interrupted generated-output sentinel was
+  restored. After restarting the VM, the exact checkout remained intact and
+  every canonical build/test command was run individually to completion.
+- A deliberately mistyped expanded commit SHA failed before checkout and did
+  not produce false validation evidence.
 
 ## Lessons Learned
 
@@ -159,10 +170,12 @@ help, Rust SDK examples, fixtures, and live behavior. No escalation remains.
 - OpenCode's numeric zero cost is not authoritative without currency and
   provenance.
 - Restart-safe authority must be external to the MCP transport session.
+- Long-running Guest Control sessions are not reliable evidence boundaries;
+  preserve command-level results and verify the exact checkout remains clean.
 
 ## Check-In Tracking
 
-- Feature commit: pending
+- Feature commit: `3c74d0968e52a663cbc50c6866d6bec9d7959593`
 - Feature PR to `develop`: pending
 - Independent review: pending
 - Release PR to `master`: pending
