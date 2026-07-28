@@ -72,9 +72,9 @@ business behavior.
   code-path/test templates plus sanitized configuration examples.
 - [x] [Model: primary implementation agent] Update Linux bootstrap,
   contributor documentation, and patch ledger.
-- [ ] [Model: primary implementation agent] Run focused and upstream
+- [x] [Model: primary implementation agent] Run focused and upstream
   regression gates.
-- [ ] [Model: primary implementation agent] Run the canonical bootstrap in a
+- [x] [Model: primary implementation agent] Run the canonical bootstrap in a
   fresh Debian 12 VirtualBox checkout at the exact feature commit.
 - [ ] [Model: independent reviewer] Review the feature PR and close every
   finding through the native GitHub conversation lifecycle.
@@ -167,7 +167,7 @@ provider credentials or external writes are needed.
 - [x] Add a regression test for every fixed defect when practical; no defect is in scope initially.
 - [x] Run focused tests for the changed behavior.
 - [x] Run the broader relevant test suite.
-- [ ] Run coverage tooling when available and review uncovered meaningful behavior.
+- [x] Run coverage tooling when available and review uncovered meaningful behavior; no coverage tool is installed, so branch/test mapping was reviewed.
 - [x] Confirm no flaky, order-dependent, or environment-dependent tests were introduced.
 - [x] Report exactly which tests passed, failed, were blocked, or were not run.
 
@@ -199,26 +199,29 @@ Relied upon:
 | `python scripts/check-epic3-assets.py --sbom <temp>` | license/notice/config/SBOM | Passed | aggregate Rust/frontend CycloneDX 1.5 |
 | Epic 2 Cargo test/Clippy | compatibility regression | Passed | 7 tests; warnings denied |
 | Bash syntax and `git diff --check` | scripts/diff | Passed | bootstrap/local/Epic 2 shell entry points |
-| Upstream frontend production build | regression | Not run | authoritative Debian run pending |
-| Canonical Debian bootstrap | live integration | Not run | Pending exact feature commit |
+| Upstream frontend production build | regression | Passed | Debian 12; known unchanged Svelte warnings retained |
+| `bash scripts/validate-quality.sh` | canonical quality | Passed | Debian 12; advisory, 5+81 tests, asset/license/config/SBOM, Clippy |
+| Epic 2 bootstrap gates and black box | compatibility integration | Passed | 7 tests; auth/protocol/restart/discovery; cleanup passed |
+| Canonical Debian bootstrap | live integration | Passed | exact `fa10dfcfeee3a086b65ea2bfbfe092df2633f1a1`; clean checkout |
+| Bootstrap idempotent rerun | installer | Passed | exact commit with `--skip-build`; no package/tool/source churn |
 
 ### Coverage and Remaining Risk
 
 Structural policy and asset/config/SBOM validation have positive and negative
 branch coverage. Skeletal crates intentionally contain no domain behavior.
-The advisory database, CI runner behavior, frontend build, canonical local
-script, and exact Linux setup remain pending Debian validation. Cargo coverage
-tooling is not installed; meaningful new branches are covered directly by ten
-focused tests.
+CI runner behavior remains pending the feature PR. The advisory database,
+frontend build, canonical local script, SBOM/license/config checks, and Linux
+setup passed in Debian. Cargo coverage tooling is not installed; meaningful new
+branches are covered directly by ten focused tests.
 
 ### Final Verification Status
 
 - Focused tests: Passed - 5 architecture and 5 asset-gate tests.
 - Broader regression suite: Passed - 81 upstream and 7 Epic 2 tests.
-- Integration tests: Passed on host for workspace/metadata/assets; Debian pending.
+- Integration tests: Passed - canonical quality and Epic 2 black box in Debian.
 - Coverage: Not run - coverage tool unavailable; branch mapping reviewed.
-- Live verification: Not run - pending exact-head Debian run.
-- Remaining unverified areas: all implementation gates.
+- Live verification: Passed - exact-head Debian bootstrap and idempotent rerun.
+- Remaining unverified areas: GitHub-hosted CI execution and independent review.
 
 ## Delegation Record
 
@@ -240,7 +243,7 @@ remains.
 
 ## Review, Check-In, and Release Record
 
-- Feature commits: pending
+- Feature commits: `e625558`, `07f8c8a`, `918485c`, `fa10dfc`
 - Feature PR to `develop`: pending
 - Independent review threads: pending
 - Native resolution verification: pending
@@ -249,8 +252,13 @@ remains.
 
 ## Deviations, Lessons, Rollback, and Upstream Impact
 
-- Deviations: none yet.
-- Lessons: pending.
+- Deviations: an initially mistyped full SHA failed closed before checkout.
+  Two exact-head attempts then failed closed because Cargo's subcommand form
+  reports `cargo-audit-audit 0.22.2`; version verification now calls the
+  installed `cargo-audit` executable directly. The final canonical run passed.
+- Lessons: version assertions must target the executable's canonical version
+  surface and be tested under `set -o pipefail`; Cargo subcommand wrappers may
+  alter program-name output.
 - Rollback: revert IDWP-owned workspace/gate commits; no data migration or
   provider state exists.
 - Upstream patches: none planned; root workspace/CI/bootstrap files are
