@@ -1,3 +1,5 @@
+[workspace]
+
 [package]
 name = "idwp-epic2-compat"
 version = "0.1.0"
