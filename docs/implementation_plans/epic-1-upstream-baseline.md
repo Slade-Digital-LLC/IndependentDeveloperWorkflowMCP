@@ -100,6 +100,9 @@ Relied upon unchanged:
 | `cargo clippy --locked -- -D warnings` | lint | Passed | No Clippy warnings |
 | `cargo audit --ignore ...` | advisory | Passed with warnings | Exit 0; six upstream ignores and eight allowed warning advisories |
 | `bootstrap-linux.sh --skip-build` rerun | idempotence | Passed after fix | Initial sentinel deletion defect fixed; fast-forward rerun clean at `7306e53` |
+| `bootstrap-linux.sh --ref 005034b... --skip-build` | pinned fresh clone | Passed | Exact detached HEAD and clean status in Debian VM |
+| Wrong-origin existing checkout scenario | source safety | Passed | Exit 1 with explicit mismatch; existing remote unchanged |
+| Correct-origin feature branch rerun | branch update | Passed | Updated to `005034b`; tracking branch and clean status verified |
 | Release checksum and archive inventory | distribution | Passed with finding | SHA-256 matched; archive contains only binary and lacks license/notices |
 
 ### Coverage and Remaining Risk

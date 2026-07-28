@@ -65,5 +65,17 @@ It did not contain the root license, notices, SBOM, or dependency license bundle
 
 - Live provider writes and Pro features were not run; they are outside Epic 1.
 - Coverage tooling was not run because Epic 1 changes no Rust/product behavior and upstream defines no coverage gate.
-- Independent architecture/license reviewer execution is blocked by the active runtime instruction that prohibits sub-agents unless explicitly requested. A strict self-review was performed, but it is not represented as independent review.
 
+## Independent review remediation
+
+Promotion review was explicitly authorized after the initial validation. The independent reviewer identified reproducibility, remote-validation, default-pin, plan-consistency, and documentation-accuracy issues. Commit `005034b9d9fa9cac5282e68f5a748f80a9389de3` addresses them.
+
+Focused Debian VM results:
+
+- Fresh `--ref 005034b9d9fa9cac5282e68f5a748f80a9389de3 --skip-build` clone passed, produced that exact detached HEAD, and left a clean checkout.
+- An existing checkout whose `origin` was `wshm-dev/wshm` was rejected when `--repo` requested the Slade Digital fork; the remote remained unchanged.
+- The existing correct organization checkout updated the feature branch to the exact reviewed commit and remained clean.
+- Rust is pinned to 1.97.1 in the installer and `rust-toolchain.toml`.
+- The default project ref is the durable `master` branch; reproducibility validation uses an explicit full SHA.
+
+The requested reviewer model was `gpt-5.6-terra`; the child handoff reported GPT-5 Codex as the actual runtime model. The mismatch is retained in the implementation record.
