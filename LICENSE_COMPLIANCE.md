@@ -29,7 +29,8 @@ The Rust dependency source of truth is `Cargo.lock`; the frontend sources are `w
 
 The upstream release publishes checksums and platform archives/packages, but no standalone notice bundle was found at the pinned revision. Release artifacts therefore require the root license and generated dependency notices to accompany any IDWP redistribution.
 
-## Decision
+## Project deployment decision
 
-Internal evaluation and fork maintenance may continue subject to these controls. External service or commercial deployment is blocked pending counsel review of the custom competitive-service restriction and complete corresponding-source scope.
+IDWP is approved to proceed as an organization-internal system. No person outside Slade Digital LLC will receive access to the service or a distribution. Under that explicit scope, the license is tracked for compliance but is not an adoption blocker.
 
+Any proposal to provide external access, distribute binaries/source, commercialize the service, or otherwise move beyond internal organizational use reopens this decision and requires license review before the scope changes.

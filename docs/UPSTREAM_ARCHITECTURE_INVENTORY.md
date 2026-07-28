@@ -67,4 +67,10 @@ The repository defines `bun run check`, but at the pinned revision it fails with
 
 ## Architecture decision
 
-Continue only as a conditional evaluation baseline. The Rust/SQLite/Axum/Svelte code provides useful primitives, but the custom license and Pro-only boundaries materially weaken the original adoption assumptions. Before Epic 3 commits to extension architecture, obtain legal approval and complete Epic 2 interface probes. If competitive hosted use or required Pro-only source cannot be authorized, exit wshm and select a permissively licensed foundation.
+Proceed with wshm as the IDWP foundation.
+
+The approved deployment is organization-internal only, with no external service access or distribution. The custom license remains tracked and must be reconsidered before that scope changes, but it is not a blocker for the approved use.
+
+Pro-only capabilities are not architectural dependencies. IDWP will reuse the available OSS primitives and independently implement required governance, reviewer, workflow, reporting, PostgreSQL, or other capabilities through IDWP-owned code where the OSS extension surface is insufficient. No unavailable Pro source or implementation may be copied.
+
+Epic 2 must still verify OpenCode/MCP/telemetry interfaces, and later epics must preserve the provider-neutral boundary, but an alternative foundation is not currently required.

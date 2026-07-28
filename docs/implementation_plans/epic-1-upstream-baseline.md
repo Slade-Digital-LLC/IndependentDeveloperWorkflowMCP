@@ -11,6 +11,7 @@ Create the legally and technically verified wshm fork baseline, project guidance
 - Maintain the GitHub fork under Slade Digital LLC.
 - Preserve the supplied specification under `docs/idwp-spec`.
 - Stop before Epic 2.
+- Architecture decision: proceed for organization-internal use; independently implement required Pro-only equivalents when needed.
 - Runtime instructions prohibit sub-agent delegation unless explicitly requested. This overrides the shared OpenCode delegation requirement; independent architecture/license review is therefore recorded as blocked until an independent reviewer is authorized/available.
 
 ## Checklist
