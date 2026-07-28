@@ -20,7 +20,9 @@ These rules apply to upstream synchronization, dependencies, Linux setup, Virtua
 - The script must remain shellcheck-friendly POSIX-oriented Bash, fail fast, and be safe to rerun.
 - It must install or verify all system packages, Rust components, frontend tooling, and audit tooling required to clone, build, test, lint, and inspect the project.
 - It must clone the public organization fork when the destination is absent and update only by fast-forward when the destination is an existing clean checkout.
-- It must never discard local changes, embed credentials, use an unpinned project revision by default in CI/validation, or silently continue after a failed dependency installation.
+- It must never discard local changes, embed credentials, use an unpinned project revision in reproducibility validation, or silently continue after a failed dependency installation.
+- Its ordinary developer default must be the durable `master` branch; reproducibility and CI validation must pass an explicit full commit SHA.
+- Existing destinations must prove their normalized `origin` matches `--repo` before any fetch, checkout, build, or execution.
 - Support `--repo`, `--ref`, `--destination`, `--skip-build`, and `--skip-audit` so clean VM validation is reproducible.
 - Keep dependency lists centralized in the script and document why a package is required when its purpose is not obvious.
 - Use HTTPS for public source retrieval. Authentication for private alternatives must come from the caller's credential helper or environment, never the script.

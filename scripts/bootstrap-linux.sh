@@ -2,8 +2,9 @@
 set -Eeuo pipefail
 
 REPOSITORY_URL="https://github.com/Slade-Digital-LLC/IndependentDeveloperWorkflowMCP.git"
-PROJECT_REF="feature/epic-1-baseline"
+PROJECT_REF="master"
 DESTINATION="${HOME}/src/IndependentDeveloperWorkflowMCP"
+RUST_TOOLCHAIN="1.97.1"
 SKIP_BUILD=0
 SKIP_AUDIT=0
 
@@ -35,6 +36,29 @@ while (($#)); do
     esac
 done
 
+normalize_repository_url() {
+    printf '%s' "$1" \
+        | sed -E 's#^git@([^:]+):#\1/#; s#^[a-zA-Z]+://##; s#/*$##; s#\.git$##' \
+        | tr '[:upper:]' '[:lower:]'
+}
+
+checkout_requested_ref() {
+    local checkout_path="$1"
+
+    if git ls-remote --exit-code --heads "${REPOSITORY_URL}" \
+        "refs/heads/${PROJECT_REF}" >/dev/null 2>&1; then
+        git -C "${checkout_path}" fetch --depth 1 origin \
+            "+refs/heads/${PROJECT_REF}:refs/remotes/origin/${PROJECT_REF}"
+        git -C "${checkout_path}" checkout -B "${PROJECT_REF}" \
+            "origin/${PROJECT_REF}"
+        git -C "${checkout_path}" branch --set-upstream-to="origin/${PROJECT_REF}" \
+            "${PROJECT_REF}"
+    else
+        git -C "${checkout_path}" fetch --depth 1 origin "${PROJECT_REF}"
+        git -C "${checkout_path}" checkout --detach FETCH_HEAD
+    fi
+}
+
 if [[ "$(uname -s)" != "Linux" ]]; then
     echo "This bootstrap supports Linux only." >&2
     exit 1
@@ -65,8 +89,9 @@ if ! command -v rustup >/dev/null 2>&1; then
 fi
 
 export PATH="${HOME}/.cargo/bin:${HOME}/.bun/bin:${PATH}"
-rustup toolchain install stable --profile minimal --component clippy --component rustfmt
-rustup default stable
+rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal \
+    --component clippy --component rustfmt
+rustup default "${RUST_TOOLCHAIN}"
 
 if ! command -v bun >/dev/null 2>&1; then
     curl -fsSL https://bun.sh/install | bash
@@ -80,15 +105,25 @@ fi
 
 if [[ ! -d "${DESTINATION}/.git" ]]; then
     mkdir -p "$(dirname "${DESTINATION}")"
-    git clone --branch "${PROJECT_REF}" --single-branch "${REPOSITORY_URL}" "${DESTINATION}"
+    git clone --no-checkout "${REPOSITORY_URL}" "${DESTINATION}"
+    checkout_requested_ref "${DESTINATION}"
 else
     if [[ -n "$(git -C "${DESTINATION}" status --porcelain)" ]]; then
         echo "Refusing to update a checkout with local changes: ${DESTINATION}" >&2
         exit 1
     fi
-    git -C "${DESTINATION}" fetch origin "${PROJECT_REF}"
-    git -C "${DESTINATION}" checkout "${PROJECT_REF}"
-    git -C "${DESTINATION}" merge --ff-only FETCH_HEAD
+
+    actual_origin="$(normalize_repository_url \
+        "$(git -C "${DESTINATION}" remote get-url origin)")"
+    requested_origin="$(normalize_repository_url "${REPOSITORY_URL}")"
+    if [[ "${actual_origin}" != "${requested_origin}" ]]; then
+        echo "Existing checkout origin does not match --repo." >&2
+        echo "Expected: ${requested_origin}" >&2
+        echo "Actual:   ${actual_origin}" >&2
+        exit 1
+    fi
+
+    checkout_requested_ref "${DESTINATION}"
 fi
 
 if ((SKIP_BUILD)); then

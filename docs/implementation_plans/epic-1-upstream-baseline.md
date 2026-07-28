@@ -12,7 +12,7 @@ Create the legally and technically verified wshm fork baseline, project guidance
 - Preserve the supplied specification under `docs/idwp-spec`.
 - Stop before Epic 2.
 - Architecture decision: proceed for organization-internal use; independently implement required Pro-only equivalents when needed.
-- Runtime instructions prohibit sub-agent delegation unless explicitly requested. This overrides the shared OpenCode delegation requirement; independent architecture/license review is therefore recorded as blocked until an independent reviewer is authorized/available.
+- Independent review was explicitly authorized for promotion. The requested `gpt-5.6-terra` routing was not honored by the child runtime; its handoff reported GPT-5 Codex as the actual model.
 
 ## Checklist
 
@@ -28,7 +28,7 @@ Create the legally and technically verified wshm fork baseline, project guidance
 - [x] Run clean-clone bootstrap and validation in VM.
 - [x] Run dependency/license/advisory evidence.
 - [x] Inspect release artifact notices.
-- [ ] Complete independent architecture/license review.
+- [ ] Complete independent architecture/license review and finding recheck.
 - [x] Update final evidence and commit the validated change.
 
 ## Testability and Verification
@@ -71,16 +71,17 @@ Read-only HTTPS access to GitHub, rustup, Bun, Debian mirrors, and Cargo registr
 - [x] Add or update tests before or alongside the implementation.
 - [x] Cover normal, boundary, invalid, duplicate, and failure cases in proportion to setup-script risk.
 - [x] Add a regression test for every fixed defect when practical (no product defect).
-- [ ] Run focused tests for the changed behavior.
-- [ ] Run the broader relevant test suite.
-- [ ] Run coverage tooling when available and review uncovered meaningful behavior.
-- [ ] Confirm no flaky, order-dependent, or environment-dependent tests were introduced.
-- [ ] Report exactly which tests passed, failed, were blocked, or were not run.
+- [x] Run focused tests for the changed behavior.
+- [x] Run the broader relevant test suite.
+- [x] Run coverage tooling when available and review uncovered meaningful behavior (not applicable; no product behavior changed and no upstream coverage gate).
+- [x] Confirm no flaky, order-dependent, or environment-dependent tests were introduced.
+- [x] Report exactly which tests passed, failed, were blocked, or were not run.
 
 ### Tests Added, Changed, or Relied Upon
 
-Added:
-- Linux bootstrap parse, argument, clean-clone, and rerun checks.
+Manual integration scenarios:
+- Linux bootstrap parse, help, invalid-option, clean-clone, and rerun checks.
+- No standalone automated test harness was added; the disposable Debian VM is the meaningful installer boundary test.
 
 Relied upon unchanged:
 - Upstream Rust tests protect its baseline behavior.
@@ -90,7 +91,7 @@ Relied upon unchanged:
 
 | Command | Scope | Result | Notes |
 |---|---|---|---|
-| `bash -n scripts/bootstrap-linux.sh` | shell | Not run | Pending VM |
+| `bash -n scripts/bootstrap-linux.sh` | shell | Passed | Host Bash and independent reviewer |
 | `bun run check` | frontend diagnostic | Failed | 12 errors and 5 warnings in five unmodified upstream Svelte files; not an upstream CI gate |
 | `bun run build` | frontend baseline | Passed with warnings | Production assets built; upstream accessibility/reactivity warnings remain |
 | `cargo fmt -- --check` | formatting | Passed | No formatting drift |

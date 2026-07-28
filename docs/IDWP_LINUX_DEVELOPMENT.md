@@ -1,22 +1,22 @@
 # IDWP Linux Development Setup
 
-The canonical development environment is a clean Debian 12 or supported Ubuntu installation. The bootstrap installs system packages and toolchains, clones the organization fork, and runs the exact upstream CI quality baseline.
+The canonical development environment is a clean Debian 12 or supported Ubuntu installation. The bootstrap installs system packages and pinned toolchains, clones the organization fork, and runs the upstream frontend/Rust build, test, format, lint, and advisory subset.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Slade-Digital-LLC/IndependentDeveloperWorkflowMCP/feature/epic-1-baseline/scripts/bootstrap-linux.sh \
+curl -fsSL https://raw.githubusercontent.com/Slade-Digital-LLC/IndependentDeveloperWorkflowMCP/master/scripts/bootstrap-linux.sh \
   -o /tmp/idwp-bootstrap.sh
 bash /tmp/idwp-bootstrap.sh \
-  --ref feature/epic-1-baseline \
+  --ref master \
   --destination "$HOME/src/IndependentDeveloperWorkflowMCP"
 ```
 
-For a pinned reproducibility run, pass the full commit SHA with `--ref`. Existing checkouts are updated only when clean and only by fast-forward. The script refuses to overwrite a non-Git destination or local changes.
+For a pinned reproducibility run, pass a full reachable commit SHA with `--ref`; the checkout will be detached at that exact commit. Branch refs remain on a local tracking branch. Existing checkouts are updated only when clean, and their `origin` must match `--repo`. The script refuses to overwrite a non-Git destination, local changes, or a checkout pointed at another repository.
 
 Installed prerequisites:
 
 - Git, curl, CA certificates, jq, unzip;
 - C/C++ build tools, Clang, CMake, `pkg-config`, and OpenSSL headers;
-- stable Rust through rustup with rustfmt and Clippy;
+- Rust 1.97.1 through rustup with rustfmt and Clippy, also pinned by `rust-toolchain.toml`;
 - Bun for the Svelte/Vite frontend;
 - `cargo-audit` unless `--skip-audit` is selected.
 
