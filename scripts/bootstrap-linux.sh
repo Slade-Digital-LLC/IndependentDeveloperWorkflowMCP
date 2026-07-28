@@ -6,6 +6,7 @@ PROJECT_REF="master"
 DESTINATION="${HOME}/src/IndependentDeveloperWorkflowMCP"
 RUST_TOOLCHAIN="1.97.1"
 OPENCODE_VERSION="1.18.7"
+CARGO_AUDIT_VERSION="0.22.2"
 OPENCODE_LINUX_X64_SHA256="cb5d9d6d2f8fbef0a9c975ed4494f73b2a62f4e4ffd508bcc3212da4fa76c3da"
 SKIP_BUILD=0
 SKIP_AUDIT=0
@@ -97,7 +98,7 @@ if command -v apt-get >/dev/null 2>&1; then
     "${SUDO[@]}" apt-get update
     "${SUDO[@]}" env DEBIAN_FRONTEND=noninteractive apt-get install -y \
         build-essential ca-certificates clang cmake curl git jq \
-        libssl-dev pkg-config unzip
+        libssl-dev pkg-config python3 unzip
 else
     echo "Unsupported distribution: apt-get is required (Debian/Ubuntu)." >&2
     exit 1
@@ -175,6 +176,17 @@ else
     checkout_requested_ref "${DESTINATION}" 1
 fi
 
+if ((!SKIP_AUDIT)); then
+    audit_version=""
+    if command -v cargo-audit >/dev/null 2>&1; then
+        audit_version="$(cargo-audit --version)"
+    fi
+    if [[ "${audit_version}" != "cargo-audit ${CARGO_AUDIT_VERSION}"* ]]; then
+        cargo install cargo-audit --locked \
+            --version "${CARGO_AUDIT_VERSION}" --force
+    fi
+fi
+
 if ((SKIP_BUILD)); then
     echo "Bootstrap complete at ${DESTINATION}; build skipped."
     exit 0
@@ -191,20 +203,10 @@ touch "${DESTINATION}/src/web-dist/.gitkeep"
 
 (
     cd "${DESTINATION}"
-    cargo fmt -- --check
-    cargo build --locked
-    cargo test --locked
-    cargo clippy --locked -- -D warnings
-
     if ((!SKIP_AUDIT)); then
-        command -v cargo-audit >/dev/null 2>&1 || cargo install cargo-audit --locked
-        cargo audit \
-            --ignore RUSTSEC-2026-0097 \
-            --ignore RUSTSEC-2026-0098 \
-            --ignore RUSTSEC-2026-0099 \
-            --ignore RUSTSEC-2026-0104 \
-            --ignore RUSTSEC-2026-0118 \
-            --ignore RUSTSEC-2026-0119
+        bash scripts/validate-quality.sh
+    else
+        bash scripts/validate-quality.sh --skip-advisory
     fi
 )
 

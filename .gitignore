@@ -1,5 +1,6 @@
 /target
 /compat/epic2/target/
+__pycache__/
 
 # Local Claude Code state
 .claude/

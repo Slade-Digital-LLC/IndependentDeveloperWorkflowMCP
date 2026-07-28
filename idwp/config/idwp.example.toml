@@ -1,0 +1,20 @@
+# Sanitized structural example only. Epic 3 does not load runtime IDWP config.
+
+[governance]
+public_base_url = "https://idwp.example.invalid"
+upstream_revision = "REPLACE_WITH_FULL_UPSTREAM_COMMIT_SHA"
+
+[provider]
+kind = "github"
+organization = "REPLACE_WITH_ORGANIZATION"
+repository = "REPLACE_WITH_REPOSITORY"
+credential_reference = "secret://REPLACE_WITH_WORKFLOW_IDENTITY"
+
+[reviewer]
+executable = "/absolute/path/to/opencode"
+profile = "/absolute/path/to/reviewer-profile.json"
+credential_reference = "secret://REPLACE_WITH_REVIEWER_IDENTITY"
+
+[telemetry]
+opencode_compatibility_version = "1.18.7"
+unavailable_value = "Unavailable"

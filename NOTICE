@@ -1,0 +1,10 @@
+Independent Development Workflow Platform (IDWP)
+
+This repository is a maintained extension of wshm. The upstream copyright and
+license terms are preserved verbatim in LICENSE. Upstream provenance and the
+exact accepted source revision are recorded in UPSTREAM.md.
+
+Third-party Rust and frontend dependencies retain their respective licenses.
+Dependency inventories are generated from Cargo.lock, web/bun.lock, and
+web/package-lock.json by the checked-in quality gates. See
+THIRD_PARTY_NOTICES.md and LICENSE_COMPLIANCE.md before any distribution.

@@ -14,12 +14,12 @@ For a pinned reproducibility run, pass a full reachable commit SHA with `--ref`;
 
 Installed prerequisites:
 
-- Git, curl, CA certificates, jq, unzip;
+- Git, curl, CA certificates, jq, Python 3, unzip;
 - C/C++ build tools, Clang, CMake, `pkg-config`, and OpenSSL headers;
 - Rust 1.97.1 through rustup with rustfmt and Clippy, also pinned by `rust-toolchain.toml`;
 - Bun for the Svelte/Vite frontend;
 - OpenCode 1.18.7 for the Epic 2 noninteractive/MCP compatibility contract;
-- `cargo-audit` unless `--skip-audit` is selected.
+- pinned `cargo-audit` 0.22.2 unless `--skip-audit` is selected.
 
 Useful modes:
 
@@ -52,5 +52,19 @@ tools, resources, safe errors, and restart behavior, then confirms OpenCode
 discovers the remote server. A bounded live model run uses
 `compat/epic2/run-opencode.sh`; it requires an approved provider credential
 already configured outside the repository.
+
+Epic 3 adds the canonical workspace-wide quality entry point:
+
+```bash
+bash scripts/validate-quality.sh
+```
+
+It runs locked workspace metadata, formatting, build, tests, all-target Clippy
+with warnings denied, the pinned advisory scan, executable dependency-boundary
+tests, required notice and sanitized-configuration checks, dependency license
+metadata checks, and deterministic CycloneDX 1.5 SBOM generation in a temporary
+file. CI and the Linux bootstrap call the same script. Use
+`--skip-advisory` only for the documented bootstrap mode; it does not skip any
+deterministic architecture, license, notice, configuration, or SBOM gate.
 
 `bun run check` is intentionally not part of the Epic 1 bootstrap because the pinned, unmodified upstream fails it with 12 TypeScript errors and 5 warnings, while upstream CI runs `bun run build`. The failure is retained as due-diligence evidence, not hidden or repaired during the no-feature baseline epic.
