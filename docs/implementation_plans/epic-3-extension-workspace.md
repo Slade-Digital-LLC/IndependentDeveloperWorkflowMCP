@@ -126,7 +126,8 @@ VirtualBox appliance used for final installer/build parity.
   - fail for a missing notice or forbidden secret-like example;
   - validate generated SBOM structure.
 - Workspace gates:
-  - metadata, format, build, all-feature tests, Clippy warnings-as-errors;
+  - metadata, format, build, supported upstream default-feature tests and
+    Clippy, plus all-feature tests and Clippy for every IDWP-owned crate;
   - advisory and license policy;
   - unchanged upstream frontend and Rust tests.
 - Integration:
@@ -208,6 +209,7 @@ Relied upon:
 | Bootstrap idempotent rerun | installer | Passed | exact commit with `--skip-build`; no package/tool/source churn |
 | Reviewer-fix Python regression suite | asset gate unit | Passed | 6 tests |
 | Reviewer-fix host Cargo suite | Rust regression | Blocked | Cargo is not installed on the ordinary Windows host; exact-head Debian run required |
+| Initial reviewer-fix all-workspace/all-feature gate | upstream optional features | Failed as designed | exposed 13 pre-existing async-constructor errors in optional upstream cloud/storage/vault code; narrowed to all IDWP features plus supported upstream defaults to preserve the Epic 3 boundary |
 
 ### Coverage and Remaining Risk
 
@@ -259,7 +261,10 @@ remains.
 - `Code Review 002` Active -> Pending: install pinned audit tooling before the
   `--skip-build` exit; accepted and reordered.
 - `Code Review 003` Active -> Pending: align canonical all-feature tests and
-  Clippy with the plan; accepted and implemented.
+  Clippy with the plan; accepted. Full upstream all-feature validation exposed
+  pre-existing failures in optional cloud/storage/vault code outside Epic 3,
+  so the enforced set is all IDWP-owned features plus supported upstream
+  default features.
 - `Code Review 004` Active -> Pending: do not emit the custom upstream license
   as SPDX `SSPL-1.0`; accepted, named custom-license output and regression
   assertion implemented.

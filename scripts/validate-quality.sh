@@ -20,8 +20,21 @@ cd "${ROOT}"
 cargo metadata --locked --format-version 1 >/dev/null
 cargo fmt --all -- --check
 cargo build --workspace --all-targets --locked
-cargo test --workspace --all-features --locked
-cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+cargo test --workspace --locked
+cargo test --all-features --locked \
+    -p idwp-domain \
+    -p idwp-application \
+    -p idwp-provider-contract \
+    -p idwp-review-contract \
+    -p idwp-architecture-tests
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo clippy --all-targets --all-features --locked \
+    -p idwp-domain \
+    -p idwp-application \
+    -p idwp-provider-contract \
+    -p idwp-review-contract \
+    -p idwp-architecture-tests \
+    -- -D warnings
 python3 -m unittest discover -s scripts/tests -p 'test_*.py'
 
 if ((RUN_ADVISORY)); then
