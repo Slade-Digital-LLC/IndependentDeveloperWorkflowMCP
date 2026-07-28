@@ -1,0 +1,14 @@
+{
+  "id": "evt_step_started_1",
+  "type": "session.next.step.started",
+  "properties": {
+    "timestamp": 1785200000000,
+    "sessionID": "ses_epic2_implementation",
+    "assistantMessageID": "msg_1",
+    "agent": "idwp-implementation",
+    "model": {
+      "providerID": "opencode",
+      "id": "big-pickle"
+    }
+  }
+}

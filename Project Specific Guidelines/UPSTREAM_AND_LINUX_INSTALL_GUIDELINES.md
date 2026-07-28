@@ -60,6 +60,18 @@ Do not declare Linux installation verified from Windows, WSL, a container, or in
 - Use NAT with host TCP port `2222` forwarded to guest SSH port `22`.
 - Allocate at least 2 CPUs, 4 GiB RAM, and 32 GiB dynamically allocated disk.
 - Keep credentials out of source control. Test credentials are local-only and must be changed before reuse beyond the disposable test appliance.
+- Store the `idwp` guest credential as a Generic Credential in Windows
+  Credential Manager under the exact target
+  `IDWP/VirtualBox/IDWP-Debian12/idwp`. Do not persist it in a repository,
+  script, plaintext file, implementation plan, terminal transcript, or
+  documentation.
+- Immediately create or update that Credential Manager entry whenever the
+  appliance is created or its password is reset, then prove both a credential
+  read and an authenticated VirtualBox Guest Control command before relying on
+  the appliance.
+- If the credential is unavailable, reset the disposable guest credential
+  through Debian recovery, replace the Credential Manager entry, and record
+  only the recovery event and target name—not the secret.
 - Take a `clean-os` snapshot after OS installation and a `epic-1-verified` snapshot only after successful bootstrap and validation.
 
 ## Licensing safety

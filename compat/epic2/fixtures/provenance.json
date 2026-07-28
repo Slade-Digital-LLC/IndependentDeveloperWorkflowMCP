@@ -1,0 +1,31 @@
+{
+  "opencode_version": "1.18.7",
+  "tag_commit": "02981844b88aed33f06f1527da6c58d137975069",
+  "capture": "Sanitized compatibility artifacts derived from pinned CLI NDJSON, authenticated server events, and Task tool metadata inspected during Epic 2.",
+  "fixtures": [
+    {
+      "path": "opencode-step-finish.json",
+      "source": "opencode run --format json"
+    },
+    {
+      "path": "opencode-step-started.json",
+      "source": "authenticated GET /event"
+    },
+    {
+      "path": "opencode-step-ended.json",
+      "source": "authenticated GET /event"
+    },
+    {
+      "path": "opencode-retry.json",
+      "source": "authenticated GET /event"
+    },
+    {
+      "path": "opencode-delegation.json",
+      "source": "Task tool completion metadata"
+    },
+    {
+      "path": "opencode-timeout.json",
+      "source": "bounded CLI cancellation contract"
+    }
+  ]
+}

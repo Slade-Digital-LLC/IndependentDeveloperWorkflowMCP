@@ -1,0 +1,17 @@
+{
+  "type": "tool_use",
+  "timestamp": 1785200000200,
+  "sessionID": "ses_epic2_implementation",
+  "part": {
+    "type": "tool",
+    "tool": "task",
+    "state": {
+      "status": "completed",
+      "metadata": {
+        "parentSessionId": "ses_epic2_implementation",
+        "sessionId": "ses_epic2_child",
+        "model": "opencode/big-pickle"
+      }
+    }
+  }
+}

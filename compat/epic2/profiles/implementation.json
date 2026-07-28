@@ -1,0 +1,15 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "idwp_epic2": {
+      "type": "remote",
+      "url": "http://127.0.0.1:8787/mcp",
+      "oauth": false,
+      "headers": {
+        "Authorization": "Bearer {env:IDWP_EPIC2_TOKEN}"
+      },
+      "codemode": false,
+      "timeout": 30000
+    }
+  }
+}
